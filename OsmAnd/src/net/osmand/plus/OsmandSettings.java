@@ -535,6 +535,10 @@ public class OsmandSettings {
 	// this value string is synchronized with settings_pref.xml preference name
 	public final OsmandPreference<String> USER_PASSWORD = 
 		new StringPreference("user_password", "").makeGlobal();
+	
+	public final OsmandPreference<String> ROADSPEAK_USER_NAME = new StringPreference("roadspeak_user_name", "NoName").makeGlobal();
+	
+	public final OsmandPreference<String> ROADSPEAK_USER_PASSWORD = new StringPreference("roadspeak_user_password", "").makeGlobal();
 
 	// this value boolean is synchronized with settings_pref.xml preference offline POI/Bugs edition
 	public final OsmandPreference<Boolean> OFFLINE_EDITION = new BooleanPreference("offline_edition", false).makeGlobal();

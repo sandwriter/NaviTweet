@@ -16,6 +16,7 @@ import net.osmand.plus.monitoring.OsmandMonitoringPlugin;
 import net.osmand.plus.osmedit.OsmEditingPlugin;
 import net.osmand.plus.parkingpoint.ParkingPositionPlugin;
 import net.osmand.plus.rastermaps.OsmandRasterMapsPlugin;
+import net.osmand.plus.roadspeak.RoadSpeakPlugin;
 import net.osmand.plus.views.OsmandMapTileView;
 
 import org.apache.commons.logging.Log;
@@ -67,6 +68,7 @@ public abstract class OsmandPlugin {
 		installedPlugins.add(new OsmandDevelopmentPlugin(app));
 //		installedPlugins.add(parkingPlugin);
 		installParkingPlugin(app);
+		installedPlugins.add(new RoadSpeakPlugin(app));
 		
 		Set<String> enabledPlugins = settings.getEnabledPlugins();
 		for (OsmandPlugin plugin : installedPlugins) {
