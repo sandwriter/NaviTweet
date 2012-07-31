@@ -21,6 +21,7 @@ import org.apache.commons.logging.Log;
 
 import android.app.AlertDialog;
 import android.app.AlertDialog.Builder;
+import android.content.DialogInterface;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.preference.EditTextPreference;
@@ -80,7 +81,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		roadspeakControl = createRoadSpeakControl(activity,
 				layer.getPaintText(), layer.getPaintSubText());
 		layer.getMapInfoControls().registerSideWidget(roadspeakControl,
-				R.drawable.monitoring_rec_small, R.string.map_widget_roadspeak,
+				R.drawable.roadspeak_logged_in_big, R.string.map_widget_roadspeak,
 				"roadspeak", false,
 				EnumSet.of(ApplicationMode.CAR, ApplicationMode.PEDESTRIAN),
 				EnumSet.noneOf(ApplicationMode.class), 25);
@@ -97,7 +98,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	private MapInfoControl createRoadSpeakControl(final MapActivity map,
 			Paint paintText, Paint paintSubText) {
 		final Drawable roadspeakBig = map.getResources().getDrawable(
-				R.drawable.monitoring_rec_big);
+				R.drawable.roadspeak_logged_in_big);
 		final Drawable roadspeakInactive = map.getResources().getDrawable(
 				R.drawable.monitoring_rec_inactive);
 		roadspeakControl = new TextInfoControl(map, 0, paintText, paintSubText) {
@@ -111,6 +112,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					int count = app.getRoadSpeakHelper().getOnlineMemberCount();
 					txt = OsmAndFormatter.getFormattedOnlineMemberCount(count,
 							map);
+					subtxt = app.getString(R.string.people);
 					d = roadspeakBig;
 				}
 				setText(txt, subtxt);
@@ -160,6 +162,14 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					}
 
 				};
+				
+				b.setAdapter(listAdapter, new DialogInterface.OnClickListener() {
+					
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+											
+					}
+				});
 
 				final AlertDialog dlg = b.create();
 				dlg.setCanceledOnTouchOutside(true);

@@ -1119,4 +1119,5 @@ You can enable (online or cached) tile map sources, tracking settings, and many 
 <string name="roadspeak_keep_logged_in">Keep logged in</string>
 <string name="roadspeak_keep_logged_in_summary">Enable user to exchange traffic info in vehicular social network</string>
 <string name="map_widget_roadspeak">RoadSpeak</string>
+<string name="people">ppl</string>
 </resources>
