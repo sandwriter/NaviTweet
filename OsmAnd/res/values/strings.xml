@@ -1120,4 +1120,10 @@ You can enable (online or cached) tile map sources, tracking settings, and many 
 <string name="roadspeak_keep_logged_in_summary">Enable user to exchange traffic info in vehicular social network</string>
 <string name="map_widget_roadspeak">RoadSpeak</string>
 <string name="people">ppl</string>
+<string name="roadspeak_update_url">RoadSpeak update address</string>
+<string name="roadspeak_update_url_description">Specify the web address with parameter syntax: username={0}, password={1}</string>
+<string name="roadspeak_interval">RoadSpeak update interval</string>
+<string name="roadspeak_interval_description">Specify RoadSpeak update interval</string>
+<string name="roadspeak_online_member_count_key">omc</string>
+<string name="roadspeak_grouplist_name_key">rgn</string>
 </resources>

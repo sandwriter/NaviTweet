@@ -542,6 +542,10 @@ public class OsmandSettings {
 
 	public final OsmandPreference<Boolean> ROADSPEAK_KEEP_LOGGED_IN = new BooleanPreference("roadspeak_keep_logged_in", false).makeGlobal();
 	
+	public final OsmandPreference<String> ROADSPEAK_UPDATE_URL = new StringPreference("roadspeak_update_url", "http://qbert.rutgers.edu:8080/update.php?username={0}&password={1}").makeGlobal();
+	
+	public final CommonPreference<Integer> ROADSPEAK_INTERVAL = new IntPreference("roadspeak_interval", 900).makeGlobal();
+		
 	// this value boolean is synchronized with settings_pref.xml preference offline POI/Bugs edition
 	public final OsmandPreference<Boolean> OFFLINE_EDITION = new BooleanPreference("offline_edition", false).makeGlobal();
 

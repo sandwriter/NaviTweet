@@ -110,8 +110,8 @@ public class OsmAndFormatter {
 		}
 	}
 	
-	public static String getFormattedOnlineMemberCount(int count, Context ctx){
-		return Integer.toString(count);
+	public static String getFormattedOnlineMemberCount(long count, Context ctx){
+		return Long.toString(count);
 	}
 	
 	

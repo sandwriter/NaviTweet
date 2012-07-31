@@ -109,7 +109,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				String subtxt = null;
 				Drawable d = roadspeakInactive;
 				if (settings.ROADSPEAK_KEEP_LOGGED_IN.get()) {
-					int count = app.getRoadSpeakHelper().getOnlineMemberCount();
+					long count = app.getRoadSpeakHelper().getOnlineMemberCount();
 					txt = OsmAndFormatter.getFormattedOnlineMemberCount(count,
 							map);
 					subtxt = app.getString(R.string.people);
@@ -132,7 +132,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 
 			private void openGroupListDialog() {
 				final ArrayList<Object> list = new ArrayList<Object>();
-				list.add(app.getRoadSpeakHelper().getGroupListName());
+				list.addAll(app.getRoadSpeakHelper().getGroupListName());
 
 				Builder b = new AlertDialog.Builder(map);
 				ListAdapter listAdapter = new ArrayAdapter<Object>(map,
@@ -205,6 +205,8 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				settings.ROADSPEAK_KEEP_LOGGED_IN,
 				R.string.roadspeak_keep_logged_in,
 				R.string.roadspeak_keep_logged_in_summary));
+		cat.addPreference(activity.createEditTextPreference(settings.ROADSPEAK_UPDATE_URL, R.string.roadspeak_update_url, R.string.roadspeak_update_url_description));
+		cat.addPreference(activity.createTimeListPreference(settings.ROADSPEAK_INTERVAL, new int[]{}, new int[]{5, 10, 15, 30, 60, 120}, 1, R.string.roadspeak_interval, R.string.roadspeak_interval_description));
 	}
 
 }

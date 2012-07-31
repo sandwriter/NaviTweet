@@ -110,6 +110,8 @@ public class MapActivity extends AccessibleActivity implements IMapLocationListe
 	private LiveMonitoringHelper liveMonitoringHelper;
 	private RoutingHelper routingHelper;
 	
+	private RoadSpeakHelper roadSpeakHelper;
+	
 	private boolean sensorRegistered = false;
 	private float previousSensorValue = 0;
 
@@ -194,6 +196,8 @@ public class MapActivity extends AccessibleActivity implements IMapLocationListe
 				
 		savingTrackHelper = getMyApplication().getSavingTrackHelper();
 		liveMonitoringHelper = getMyApplication().getLiveMonitoringHelper();
+		
+		roadSpeakHelper = getMyApplication().getRoadSpeakHelper();
 		LatLon pointToNavigate = settings.getPointToNavigate();
 		
 		routingHelper = getMyApplication().getRoutingHelper();
@@ -779,7 +783,10 @@ public class MapActivity extends AccessibleActivity implements IMapLocationListe
 					liveMonitoringHelper.insertData(location.getLatitude(), location.getLongitude(), location.getAltitude(),
 							location.getSpeed(), location.getAccuracy(), location.getTime(), settings);
 				}
-
+				
+				if(settings.ROADSPEAK_KEEP_LOGGED_IN.get()){
+					roadSpeakHelper.fetchData(locationTime);
+				}
 			}
 			// only for emulator
 			updateSpeedBearingEmulator(location);
