@@ -110,6 +110,10 @@ public class OsmAndFormatter {
 		}
 	}
 	
+	public static String getFormattedOnlineMemberCount(int count, Context ctx){
+		return Integer.toString(count);
+	}
+	
 	
 	public static String toPublicString(CityType t, Context ctx) {
 		switch (t) {

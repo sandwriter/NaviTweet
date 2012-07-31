@@ -540,6 +540,8 @@ public class OsmandSettings {
 	
 	public final OsmandPreference<String> ROADSPEAK_USER_PASSWORD = new StringPreference("roadspeak_user_password", "").makeGlobal();
 
+	public final OsmandPreference<Boolean> ROADSPEAK_KEEP_LOGGED_IN = new BooleanPreference("roadspeak_keep_logged_in", false).makeGlobal();
+	
 	// this value boolean is synchronized with settings_pref.xml preference offline POI/Bugs edition
 	public final OsmandPreference<Boolean> OFFLINE_EDITION = new BooleanPreference("offline_edition", false).makeGlobal();
 

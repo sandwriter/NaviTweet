@@ -21,6 +21,7 @@ import net.osmand.access.AccessibleToast;
 import net.osmand.plus.activities.DayNightHelper;
 import net.osmand.plus.activities.LiveMonitoringHelper;
 import net.osmand.plus.activities.OsmandIntents;
+import net.osmand.plus.activities.RoadSpeakHelper;
 import net.osmand.plus.activities.SavingTrackHelper;
 import net.osmand.plus.activities.SettingsActivity;
 import net.osmand.plus.render.NativeOsmandLibrary;
@@ -73,6 +74,7 @@ public class OsmandApplication extends Application {
 	private GPXFile gpxFileToDisplay;
 	private SavingTrackHelper savingTrackHelper;
 	private LiveMonitoringHelper liveMonitoringHelper;
+	private RoadSpeakHelper roadSpeakHelper;
 
 	private boolean applicationInitializing = false;
 	private Locale prefferedLocale = null;
@@ -90,6 +92,7 @@ public class OsmandApplication extends Application {
 		bidforfix = new BidForFixHelper("osmand.net", getString(R.string.default_buttons_support), getString(R.string.default_buttons_cancel));
 		savingTrackHelper = new SavingTrackHelper(this);
 		liveMonitoringHelper = new LiveMonitoringHelper(this);
+		roadSpeakHelper = new RoadSpeakHelper(this);
 		uiHandler = new Handler();
 		rendererRegistry = new RendererRegistry();
 		checkPrefferedLocale();
@@ -145,6 +148,10 @@ public class OsmandApplication extends Application {
 	
 	public LiveMonitoringHelper getLiveMonitoringHelper() {
 		return liveMonitoringHelper;
+	}
+	
+	public RoadSpeakHelper getRoadSpeakHelper(){
+		return roadSpeakHelper;
 	}
 	
 
