@@ -175,7 +175,7 @@ public class RoadSpeakHelper {
 
 	private void uploadMessage(double lat, double lon, double alt, double speed, double hdop, long time) {
 		File messageFile = new File(recordFilename);
-		RoadSpeakMessage message = new RoadSpeakMessage(settings.USER_NAME.get(), settings.USER_PASSWORD.get(), (float)lat, (float)lon, (float)alt, (float)speed, (float)hdop, time, messageFile);
+		RoadSpeakMessage message = new RoadSpeakMessage(settings.ROADSPEAK_USER_NAME.get(), settings.ROADSPEAK_USER_PASSWORD.get(), (float)lat, (float)lon, (float)alt, (float)speed, (float)hdop, time, messageFile);
 		new RoadSpeakUploader().execute(message);
 	}
 	
@@ -188,8 +188,8 @@ public class RoadSpeakHelper {
 				HttpPost httppost = new HttpPost(settings.ROADSPEAK_UPLOAD_URL.get());
 				MultipartEntity entity = new MultipartEntity();
 				try {
-					entity.addPart(ctx.getString(R.string.username_key), new StringBody(settings.USER_NAME.get()));
-					entity.addPart(ctx.getString(R.string.password_key), new StringBody(settings.USER_PASSWORD.get()));
+					entity.addPart(ctx.getString(R.string.username_key), new StringBody(message.username));
+					entity.addPart(ctx.getString(R.string.password_key), new StringBody(message.password));
 					entity.addPart(ctx.getString(R.string.lat_key), new StringBody(Float.toString(message.lat)));
 					entity.addPart(ctx.getString(R.string.lon_key), new StringBody(Float.toString(message.lon)));
 					entity.addPart(ctx.getString(R.string.alt_key), new StringBody(Float.toString(message.alt)));
