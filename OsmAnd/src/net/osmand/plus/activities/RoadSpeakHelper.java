@@ -1,6 +1,8 @@
 package net.osmand.plus.activities;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.MessageFormat;
@@ -13,8 +15,13 @@ import net.osmand.plus.R;
 
 import org.apache.commons.logging.Log;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.entity.mime.MultipartEntity;
+import org.apache.http.entity.mime.content.FileBody;
+import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
@@ -24,21 +31,29 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.content.Context;
+import android.media.MediaRecorder;
+import android.media.MediaRecorder.AudioSource;
+import android.media.MediaRecorder.OutputFormat;
 import android.os.AsyncTask;
+import android.os.Environment;
 
 public class RoadSpeakHelper {
 	
 	protected Context ctx;
 	private OsmandSettings settings;
 	private long lastTimeUpdated = 0L;
-	private final static Log log = LogUtil.getLog(RoadSpeakHelper.class);
+	private final static Log LOG = LogUtil.getLog(RoadSpeakHelper.class);
 	
 	private long onlineMemberCount = 0;
 	private ArrayList<String> groupListName = new ArrayList<String>();
 	
+	private MediaRecorder recorder = null;
+	private static String recordFilename;
+	
 	public RoadSpeakHelper(Context ctx) {
 		this.ctx = ctx;
 		settings = ((OsmandApplication)ctx.getApplicationContext()).getSettings();
+		recordFilename = Environment.getExternalStorageDirectory().getAbsolutePath() + "/tmp_recording.3gpp";
 	}
 	
 	public boolean isKeepLoggedInEnabled(){
@@ -77,7 +92,7 @@ public class RoadSpeakHelper {
 			HttpConnectionParams.setConnectionTimeout(params, 15000);
 			DefaultHttpClient httpclient = new DefaultHttpClient(params);
 			HttpRequestBase method = new HttpGet(url);
-			log.info("RoadSpeak Update " + url);
+			LOG.info("RoadSpeak Update " + url);
 			HttpResponse response = httpclient.execute(method);
 			
 			if(response.getStatusLine() == null || response.getStatusLine().getStatusCode() != 200){
@@ -87,7 +102,7 @@ public class RoadSpeakHelper {
 				}else{
 					msg = response.getStatusLine().getStatusCode() + " : " + response.getStatusLine().getReasonPhrase();
 				}
-				log.error("Error fetching RoadSpeak update : " + msg);
+				LOG.error("Error fetching RoadSpeak update : " + msg);
 			}else{
 				InputStream is = response.getEntity().getContent();
 				StringBuilder responseBody = new StringBuilder();
@@ -100,12 +115,12 @@ public class RoadSpeakHelper {
 					is.close();
 				}
 				httpclient.getConnectionManager().shutdown();
-				log.info("RoadSpeak Update response : " + responseBody.toString());
+				LOG.info("RoadSpeak Update response : " + responseBody.toString());
 				
 				updateData(responseBody.toString());
 			}
 		}catch(Exception e){
-			log.error("Failed connect to " + url, e);
+			LOG.error("Failed connect to " + url, e);
 		}
 				
 	}
@@ -120,8 +135,114 @@ public class RoadSpeakHelper {
 				groupListName.add(array.getString(i));
 			}
 		} catch (JSONException e) {
-			log.error("Failed reading RoadSpeak response", e);
+			LOG.error("Failed reading RoadSpeak response", e);
 		}
 		
 	}
+
+	public void sendMessage(double lat, double lon, double alt, double speed, double hdop, long time) {
+		if(recorder != null){
+			recorder.stop();
+			recorder.release();
+			recorder = null;
+			uploadMessage(lat, lon, alt, speed, hdop, time);
+		}
+	}	
+	
+	private static class RoadSpeakMessage{
+		private final String username;
+		private final String password;
+		private final float lat;
+		private final float lon;
+		private final float alt;
+		private final float speed;
+		private final float hdop;
+		private final long time;
+		private final File messageFile;
+		
+		public RoadSpeakMessage(String username, String password, float lat, float lon, float alt, float speed, float hdop, long time, File messageFile){
+			this.username = username;
+			this.password = password;
+			this.lat = lat;
+			this.lon = lon;
+			this.alt = alt;
+			this.speed = speed;
+			this.hdop = hdop;
+			this.time = time;
+			this.messageFile = messageFile;
+		}
+	}
+
+	private void uploadMessage(double lat, double lon, double alt, double speed, double hdop, long time) {
+		File messageFile = new File(recordFilename);
+		RoadSpeakMessage message = new RoadSpeakMessage(settings.USER_NAME.get(), settings.USER_PASSWORD.get(), (float)lat, (float)lon, (float)alt, (float)speed, (float)hdop, time, messageFile);
+		new RoadSpeakUploader().execute(message);
+	}
+	
+	private class RoadSpeakUploader extends AsyncTask<RoadSpeakMessage, Void, Void>{
+
+		@Override
+		protected Void doInBackground(RoadSpeakMessage... params) {
+			for(RoadSpeakMessage message : params){
+				HttpClient httpclient = new DefaultHttpClient();
+				HttpPost httppost = new HttpPost(settings.ROADSPEAK_UPLOAD_URL.get());
+				MultipartEntity entity = new MultipartEntity();
+				try {
+					entity.addPart(ctx.getString(R.string.username_key), new StringBody(settings.USER_NAME.get()));
+					entity.addPart(ctx.getString(R.string.password_key), new StringBody(settings.USER_PASSWORD.get()));
+					entity.addPart(ctx.getString(R.string.lat_key), new StringBody(Float.toString(message.lat)));
+					entity.addPart(ctx.getString(R.string.lon_key), new StringBody(Float.toString(message.lon)));
+					entity.addPart(ctx.getString(R.string.alt_key), new StringBody(Float.toString(message.alt)));
+					entity.addPart(ctx.getString(R.string.speed_key), new StringBody(Float.toString(message.speed)));
+					entity.addPart(ctx.getString(R.string.hdop_key), new StringBody(Float.toString(message.hdop)));
+					entity.addPart(ctx.getString(R.string.time_key), new StringBody(Long.toString(message.time)));
+					entity.addPart(ctx.getString(R.string.messagefile_key), new FileBody(message.messageFile));
+					httppost.setEntity(entity);
+					HttpResponse response = httpclient.execute(httppost);
+					if(response.getStatusLine() == null || response.getStatusLine().getStatusCode() != 200){
+						String msg;
+						if(response.getStatusLine() != null){
+							msg = ctx.getString(R.string.failed_op);					
+						}else{
+							msg = response.getStatusLine().getStatusCode() + " : " + response.getStatusLine().getReasonPhrase();
+						}
+						LOG.error("Error uploading RoadSpeak message : " + msg);
+					}else{
+						InputStream is = response.getEntity().getContent();
+						StringBuilder responseBody = new StringBuilder();
+						if(is != null){
+							BufferedReader in = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+							String s;
+							while((s=in.readLine()) != null){
+								responseBody.append(s);
+							}
+							is.close();
+						}
+						httpclient.getConnectionManager().shutdown();
+						LOG.info("RoadSpeak upload response : " + responseBody.toString());
+					}
+					
+				}  catch (Exception e) {
+					LOG.error("Failed connect to " + settings.ROADSPEAK_UPLOAD_URL.get(), e);
+				}
+			}
+			return null;
+		}
+	}
+
+	public void recordMessage() {
+		LOG.info("recording message");
+		recorder = new MediaRecorder();
+		recorder.setAudioSource(AudioSource.MIC);
+		recorder.setOutputFormat(OutputFormat.THREE_GPP);
+		recorder.setOutputFile(recordFilename);
+		recorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);				
+		try{
+			recorder.prepare();
+			recorder.start();
+		}catch(IOException e){
+			LOG.error(LogUtil.TAG, e);			
+		}		
+	}
+
 }

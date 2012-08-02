@@ -544,6 +544,10 @@ public class OsmandSettings {
 	
 	public final OsmandPreference<String> ROADSPEAK_UPDATE_URL = new StringPreference("roadspeak_update_url", "http://qbert.rutgers.edu:8080/update.php?username={0}&password={1}").makeGlobal();
 	
+	public final OsmandPreference<String> ROADSPEAK_UPLOAD_URL = new StringPreference("roadspeak_upload_url", "http://qbert.rutgers.edu:8080/upload.php").makeGlobal();
+	
+	public final OsmandPreference<String> ROADSPEAK_DOWNLOAD_URL = new StringPreference("roadspeak_download_url", "http://qbert.rutgers.edu:8080/download.php").makeGlobal();
+	
 	public final CommonPreference<Integer> ROADSPEAK_INTERVAL = new IntPreference("roadspeak_interval", 900).makeGlobal();
 		
 	// this value boolean is synchronized with settings_pref.xml preference offline POI/Bugs edition

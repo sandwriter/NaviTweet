@@ -206,6 +206,8 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				R.string.roadspeak_keep_logged_in,
 				R.string.roadspeak_keep_logged_in_summary));
 		cat.addPreference(activity.createEditTextPreference(settings.ROADSPEAK_UPDATE_URL, R.string.roadspeak_update_url, R.string.roadspeak_update_url_description));
+		cat.addPreference(activity.createEditTextPreference(settings.ROADSPEAK_UPLOAD_URL, R.string.roadspeak_upload_url, R.string.roadspeak_upload_url_description));
+		cat.addPreference(activity.createEditTextPreference(settings.ROADSPEAK_DOWNLOAD_URL, R.string.roadspeak_download_url, R.string.roadspeak_download_url_description));
 		cat.addPreference(activity.createTimeListPreference(settings.ROADSPEAK_INTERVAL, new int[]{}, new int[]{5, 10, 15, 30, 60, 120}, 1, R.string.roadspeak_interval, R.string.roadspeak_interval_description));
 	}
 

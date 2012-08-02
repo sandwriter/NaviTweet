@@ -1126,4 +1126,18 @@ You can enable (online or cached) tile map sources, tracking settings, and many 
 <string name="roadspeak_interval_description">Specify RoadSpeak update interval</string>
 <string name="roadspeak_online_member_count_key">omc</string>
 <string name="roadspeak_grouplist_name_key">rgn</string>
+<string name="roadspeak_upload_url">RoadSpeak upload address</string>
+<string name="roadspeak_upload_url_description">Specify the web address for uploading voice message</string>
+<string name="roadspeak_download_url">RoadSpeak download address</string>
+<string name="roadspeak_download_url_description">Specify the web address for downloading traffic digest</string>
+<string name="lat_key">lat</string>
+<string name="username_key">username</string>
+<string name="password_key">password</string>
+<string name="lon_key">lon</string>
+<string name="alt_key">alt</string>
+<string name="speed_key">speed</string>
+<string name="hdop_key">hdop</string>
+<string name="time_key">time</string>
+<string name="messagefile_key">file</string>
+<string name="message_sent">Message uploaded</string>
 </resources>
