@@ -194,4 +194,10 @@ public class OsmAndFormatter {
 		}
 		return amenity.getSubType() + " " + n; //$NON-NLS-1$
 	}
+
+	public static String getFormattedTime(int seconds) {
+		int min = seconds / 60;
+		int sec = seconds % 60;
+		return Integer.toString(min) + ":" + Integer.toString(sec);
+	}
 }

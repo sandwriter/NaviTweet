@@ -68,6 +68,7 @@ public abstract class OsmandPlugin {
 		installedPlugins.add(new OsmandDevelopmentPlugin(app));
 //		installedPlugins.add(parkingPlugin);
 		installParkingPlugin(app);
+		
 		installedPlugins.add(new RoadSpeakPlugin(app));
 		
 		Set<String> enabledPlugins = settings.getEnabledPlugins();

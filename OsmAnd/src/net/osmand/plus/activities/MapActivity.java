@@ -1113,6 +1113,10 @@ public class MapActivity extends AccessibleActivity implements
 	public RoutingHelper getRoutingHelper() {
 		return routingHelper;
 	}
+	
+	public RoadSpeakHelper getRoadSpeakHelper(){
+		return roadSpeakHelper;
+	}
 
 	private boolean isRunningOnEmulator() {
 		if (Build.DEVICE.equals("generic")) { //$NON-NLS-1$ 

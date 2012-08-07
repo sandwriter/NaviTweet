@@ -496,6 +496,7 @@ public class MapActivityActions implements DialogProvider {
 				routingHelper.setFinalAndCurrentLocation(mapActivity.getPointToNavigate(), current);
 				dialog.dismiss();
 				getMyApplication().showDialogInitializingCommandPlayer(mapActivity);
+				mapActivity.getRoadSpeakHelper().EnableRoadSpeakMessage();
 			}
 		};
 

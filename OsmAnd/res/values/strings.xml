@@ -1140,4 +1140,5 @@ You can enable (online or cached) tile map sources, tracking settings, and many 
 <string name="time_key">time</string>
 <string name="messagefile_key">file</string>
 <string name="message_sent">Message uploaded</string>
+<string name="map_widget_roadspeak_fetchmessage">RoadSpeak message</string>
 </resources>
