@@ -40,6 +40,7 @@ import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.ListAdapter;
 import android.widget.TextView;
+import android.widget.Toast;
 
 /*
  * 
@@ -59,8 +60,9 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	private Handler handler = new Handler();
 	
 	private final String ROADSPEAK_FETCH_MESSAGE_TIMER_ID = "roadspeak_fetch_message";
-
 	private SimpleTimer roadspeakFetchMessageTimer = new SimpleTimer(ROADSPEAK_FETCH_MESSAGE_TIMER_ID);
+	
+	private MapActivity mapActivity;	
 
 	public RoadSpeakPlugin(OsmandApplication app) {
 		this.app = app;
@@ -89,6 +91,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 
 	@Override
 	public void registerLayers(MapActivity activity) {
+		this.mapActivity = activity;
 		MapInfoLayer layer = activity.getMapLayers().getMapInfoLayer();
 		roadspeakControl = createRoadSpeakControl(activity,
 				layer.getPaintText(), layer.getPaintSubText());
@@ -153,7 +156,10 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	}
 
 	private void fetchAndPlayMessage() {
-
+		Toast.makeText(mapActivity, "fetchandPlayMessage()", Toast.LENGTH_SHORT).show();
+		pauseRoadSpeakFetchMessageTimer();
+		resetRoadSpeakFetchMessageTimer();
+		startRoadSpeakFetchMessageTimer();
 	}
 
 	public void resetRoadSpeakFetchMessageTimer() {
@@ -170,7 +176,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	}
 	
 	public void onCountDownFinished(String id){
-		// TODO: handler the countdown finish event
+		fetchAndPlayMessage();
 	}
 	
 	public void onCountDown(String id){
@@ -312,6 +318,8 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 						15, 30, 60, 120 }, 1, R.string.roadspeak_interval,
 				R.string.roadspeak_interval_description));
 	}
+	
+	
 
 	private class SimpleTimer {
 		public String id;
@@ -335,7 +343,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				handler.post(new Runnable(){
 					@Override
 					public void run() {
-						RoadSpeakPlugin.this.onCountDown(SimpleTimer.this.id);						
+						SimpleTimer.this.onCountDown();		
 					}					
 				});
 				return true;
@@ -356,7 +364,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 						handler.post(new Runnable(){
 							@Override
 							public void run() {
-								RoadSpeakPlugin.this.onCountDownFinished(SimpleTimer.this.id);	
+								SimpleTimer.this.onCountDownFinish();
 							}							
 						});
 						schedulerHandler.cancel(true);
@@ -368,6 +376,14 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		
 		public void pause(){
 			schedulerHandler.cancel(true);
+		}
+		
+		public void onCountDown(){
+			RoadSpeakPlugin.this.onCountDown(SimpleTimer.this.id);
+		}
+		
+		public void onCountDownFinish(){
+			RoadSpeakPlugin.this.onCountDownFinished(SimpleTimer.this.id);
 		}
 	}
 

@@ -16,42 +16,45 @@ public class OsmAndFormatter {
 	private final static float METERS_IN_ONE_MILE = 1609.344f; // 1609.344
 	private final static float YARDS_IN_ONE_METER = 1.0936f;
 	private final static float FOOTS_IN_ONE_METER = YARDS_IN_ONE_METER * 3f;
-	
+
 	public static double calculateRoundedDist(double distInMeters, Context ctx) {
-		OsmandSettings settings = ((OsmandApplication) ctx.getApplicationContext()).getSettings();
+		OsmandSettings settings = ((OsmandApplication) ctx
+				.getApplicationContext()).getSettings();
 		MetricsConstants mc = settings.METRIC_SYSTEM.get();
 		double mainUnitInMeter = 1;
-		double metersInSecondUnit = METERS_IN_KILOMETER; 
+		double metersInSecondUnit = METERS_IN_KILOMETER;
 		if (mc == MetricsConstants.MILES_AND_FOOTS) {
 			mainUnitInMeter = FOOTS_IN_ONE_METER;
 			metersInSecondUnit = METERS_IN_ONE_MILE;
-		} else if(mc == MetricsConstants.MILES_AND_YARDS){
+		} else if (mc == MetricsConstants.MILES_AND_YARDS) {
 			mainUnitInMeter = YARDS_IN_ONE_METER;
-			metersInSecondUnit = METERS_IN_ONE_MILE ;
+			metersInSecondUnit = METERS_IN_ONE_MILE;
 		}
 		// 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000 ...
-		
+
 		int generator = 1;
 		byte pointer = 1;
 		double point = mainUnitInMeter;
-		while(distInMeters * point > generator){
+		while (distInMeters * point > generator) {
 			if (pointer++ % 3 == 2) {
 				generator = generator * 5 / 2;
 			} else {
 				generator *= 2;
 			}
-			if(point == mainUnitInMeter && metersInSecondUnit * mainUnitInMeter * 0.9f <= generator ){
+			if (point == mainUnitInMeter
+					&& metersInSecondUnit * mainUnitInMeter * 0.9f <= generator) {
 				point = 1 / metersInSecondUnit;
 				generator = 1;
 				pointer = 1;
 			}
 		}
-		
+
 		return (generator / point);
 	}
-	
+
 	public static String getFormattedDistance(float meters, Context ctx) {
-		OsmandSettings settings = ((OsmandApplication) ctx.getApplicationContext()).getSettings();
+		OsmandSettings settings = ((OsmandApplication) ctx
+				.getApplicationContext()).getSettings();
 		MetricsConstants mc = settings.METRIC_SYSTEM.get();
 		int mainUnitStr;
 		float mainUnitInMeters;
@@ -64,11 +67,14 @@ public class OsmAndFormatter {
 		}
 
 		if (meters >= 100 * mainUnitInMeters) {
-			return (int) (meters / mainUnitInMeters) + " " + ctx.getString(mainUnitStr); //$NON-NLS-1$
+			return (int) (meters / mainUnitInMeters)
+					+ " " + ctx.getString(mainUnitStr); //$NON-NLS-1$
 		} else if (meters > 9.99f * mainUnitInMeters) {
-			return MessageFormat.format("{0,number,#.#} " + ctx.getString(mainUnitStr), ((float) meters) / mainUnitInMeters); //$NON-NLS-1$ 
+			return MessageFormat
+					.format("{0,number,#.#} " + ctx.getString(mainUnitStr), ((float) meters) / mainUnitInMeters); //$NON-NLS-1$ 
 		} else if (meters > 0.999f * mainUnitInMeters) {
-			return MessageFormat.format("{0,number,#.##} " + ctx.getString(mainUnitStr), ((float) meters) / mainUnitInMeters); //$NON-NLS-1$
+			return MessageFormat
+					.format("{0,number,#.##} " + ctx.getString(mainUnitStr), ((float) meters) / mainUnitInMeters); //$NON-NLS-1$
 		} else {
 			if (mc == MetricsConstants.KILOMETERS_AND_METERS) {
 				return ((int) meters) + " " + ctx.getString(R.string.m); //$NON-NLS-1$
@@ -84,37 +90,40 @@ public class OsmAndFormatter {
 	}
 
 	public static String getFormattedAlt(double alt, Context ctx) {
-		OsmandSettings settings = ((OsmandApplication) ctx.getApplicationContext()).getSettings();
+		OsmandSettings settings = ((OsmandApplication) ctx
+				.getApplicationContext()).getSettings();
 		MetricsConstants mc = settings.METRIC_SYSTEM.get();
 		if (mc == MetricsConstants.KILOMETERS_AND_METERS) {
 			return ((int) alt) + " " + ctx.getString(R.string.m);
 		} else {
-			return ((int) (alt * FOOTS_IN_ONE_METER)) + " " + ctx.getString(R.string.foot);
+			return ((int) (alt * FOOTS_IN_ONE_METER)) + " "
+					+ ctx.getString(R.string.foot);
 		}
 	}
-	
+
 	public static String getFormattedSpeed(float metersperseconds, Context ctx) {
-		OsmandSettings settings = ((OsmandApplication) ctx.getApplicationContext()).getSettings();
+		OsmandSettings settings = ((OsmandApplication) ctx
+				.getApplicationContext()).getSettings();
 		MetricsConstants mc = settings.METRIC_SYSTEM.get();
 		float kmh = metersperseconds * 3.6f;
-		if(mc == MetricsConstants.KILOMETERS_AND_METERS){
+		if (mc == MetricsConstants.KILOMETERS_AND_METERS) {
 			return ((int) kmh) + " " + ctx.getString(R.string.km_h);
 		} else {
 			float mph = kmh * METERS_IN_KILOMETER / METERS_IN_ONE_MILE;
-			if(mph >= 10) {
-				return ((int) (mph)) + " "+ ctx.getString(R.string.mile_per_hour);
+			if (mph >= 10) {
+				return ((int) (mph)) + " "
+						+ ctx.getString(R.string.mile_per_hour);
 			} else {
-				mph = ((int)mph*10f)/10f;
-				return mph + " "+ ctx.getString(R.string.mile_per_hour);
+				mph = ((int) mph * 10f) / 10f;
+				return mph + " " + ctx.getString(R.string.mile_per_hour);
 			}
 		}
 	}
-	
-	public static String getFormattedOnlineMemberCount(long count, Context ctx){
+
+	public static String getFormattedOnlineMemberCount(long count, Context ctx) {
 		return Long.toString(count);
 	}
-	
-	
+
 	public static String toPublicString(CityType t, Context ctx) {
 		switch (t) {
 		case CITY:
@@ -130,6 +139,7 @@ public class OsmAndFormatter {
 		}
 		return "";
 	}
+
 	public static String toPublicString(AmenityType t, Context ctx) {
 		switch (t) {
 		case SUSTENANCE:
@@ -152,7 +162,7 @@ public class OsmAndFormatter {
 			return ctx.getString(R.string.amenity_type_natural);
 		case USER_DEFINED:
 			return ctx.getString(R.string.amenity_type_user_defined);
-		case OSMWIKI :
+		case OSMWIKI:
 			return ctx.getString(R.string.amenity_type_wikiosm);
 		case SHOP:
 			return ctx.getString(R.string.amenity_type_shop);
@@ -182,14 +192,15 @@ public class OsmAndFormatter {
 		return "";
 	}
 
-	
-	public static String getPoiSimpleFormat(Amenity amenity, Context ctx, boolean en){
-		return toPublicString(amenity.getType(), ctx) + " : " + getPoiStringWithoutType(amenity, en); //$NON-NLS-1$
+	public static String getPoiSimpleFormat(Amenity amenity, Context ctx,
+			boolean en) {
+		return toPublicString(amenity.getType(), ctx)
+				+ " : " + getPoiStringWithoutType(amenity, en); //$NON-NLS-1$
 	}
-	
-	public static String getPoiStringWithoutType(Amenity amenity, boolean en){
+
+	public static String getPoiStringWithoutType(Amenity amenity, boolean en) {
 		String n = amenity.getName(en);
-		if(n.length() == 0){
+		if (n.length() == 0) {
 			return amenity.getSubType();
 		}
 		return amenity.getSubType() + " " + n; //$NON-NLS-1$
@@ -198,6 +209,7 @@ public class OsmAndFormatter {
 	public static String getFormattedTime(int seconds) {
 		int min = seconds / 60;
 		int sec = seconds % 60;
-		return Integer.toString(min) + ":" + Integer.toString(sec);
+		return Integer.toString(min) + ":" + (sec < 10 ? "0" : "")
+				+ Integer.toString(sec);
 	}
 }
