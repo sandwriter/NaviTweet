@@ -1141,4 +1141,18 @@ You can enable (online or cached) tile map sources, tracking settings, and many 
 <string name="messagefile_key">file</string>
 <string name="message_sent">Message uploaded</string>
 <string name="map_widget_roadspeak_fetchmessage">RoadSpeak message</string>
+<string name="roadspeak_update_environment_url">RoadSpeak update env address</string>
+<string name="roadspeak_update_environment_url_description">Specify the web address for updating friend and message location</string>
+<string name="roadspeak_data_source_object_key">dso</string>
+<string name="roadspeak_type_key">type</string>
+<string name="roadspeak_lat_key">lat</string>
+<string name="roadspeak_lon_key">lon</string>
+<string name="roadspeak_alt_key">alt</string>
+<string name="roadspeak_speed_key">speed</string>
+<string name="roadspeak_bearing_key">bearing</string>
+<string name="roadspeak_accuracy_key">hdop</string>
+<string name="roadspeak_time_key">time</string>
+<string name="roadspeak_userid_key">userid</string>
+<string name="roadspeak_username_key">username</string>
+<string name="roadspeak_message_id_key">messageid</string>
 </resources>

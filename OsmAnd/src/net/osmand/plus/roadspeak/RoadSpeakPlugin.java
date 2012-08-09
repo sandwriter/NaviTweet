@@ -1,5 +1,6 @@
 package net.osmand.plus.roadspeak;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.concurrent.Executors;
@@ -9,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 import net.osmand.LogUtil;
 import net.osmand.OsmAndFormatter;
+import net.osmand.osm.LatLon;
 import net.osmand.plus.OsmandApplication;
 import net.osmand.plus.OsmandPlugin;
 import net.osmand.plus.OsmandSettings;
@@ -28,8 +30,8 @@ import android.app.AlertDialog.Builder;
 import android.content.DialogInterface;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
+import android.location.Location;
 import android.os.Handler;
-import android.os.Message;
 import android.preference.EditTextPreference;
 import android.preference.PreferenceCategory;
 import android.preference.PreferenceScreen;
@@ -58,11 +60,14 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	private MapInfoControl roadspeakControl;
 	private MapInfoControl roadspeakFetchControl;
 	private Handler handler = new Handler();
-	
+
 	private final String ROADSPEAK_FETCH_MESSAGE_TIMER_ID = "roadspeak_fetch_message";
-	private SimpleTimer roadspeakFetchMessageTimer = new SimpleTimer(ROADSPEAK_FETCH_MESSAGE_TIMER_ID);
-	
-	private MapActivity mapActivity;	
+	private SimpleTimer roadspeakFetchMessageTimer = new SimpleTimer(
+			ROADSPEAK_FETCH_MESSAGE_TIMER_ID);
+	private final String ROADSPEAK_UPDATE_LOCATION_TIMER_ID = "roadspeak_update_location";
+	private SimpleTimer updateLocationTimer = null;
+
+	private MapActivity map;
 
 	public RoadSpeakPlugin(OsmandApplication app) {
 		this.app = app;
@@ -91,7 +96,6 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 
 	@Override
 	public void registerLayers(MapActivity activity) {
-		this.mapActivity = activity;
 		MapInfoLayer layer = activity.getMapLayers().getMapInfoLayer();
 		roadspeakControl = createRoadSpeakControl(activity,
 				layer.getPaintText(), layer.getPaintSubText());
@@ -129,7 +133,8 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				String txt = null;
 				String subtxt = null;
 				Drawable d = roadspeakFetchMessageInactive;
-				if (settings.ROADSPEAK_KEEP_LOGGED_IN.get() && mapActivity.getRoutingHelper().isFollowingMode()) {
+				if (settings.ROADSPEAK_KEEP_LOGGED_IN.get()
+						&& mapActivity.getRoutingHelper().isFollowingMode()) {
 					int seconds = getRoadSpeakFetchControlTimer();
 					txt = OsmAndFormatter.getFormattedTime(seconds);
 					d = roadspeakFetchMessageBig;
@@ -156,7 +161,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	}
 
 	private void fetchAndPlayMessage() {
-		Toast.makeText(mapActivity, "fetchandPlayMessage()", Toast.LENGTH_SHORT).show();
+		Toast.makeText(map, "fetchandPlayMessage()", Toast.LENGTH_SHORT).show();
 		pauseRoadSpeakFetchMessageTimer();
 		resetRoadSpeakFetchMessageTimer();
 		startRoadSpeakFetchMessageTimer();
@@ -164,7 +169,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 
 	public void resetRoadSpeakFetchMessageTimer() {
 		final int seconds = settings.ROADSPEAK_INTERVAL.get();
-		roadspeakFetchMessageTimer.reset(seconds, 1);
+		roadspeakFetchMessageTimer.reset(seconds, 1, true);
 	}
 
 	public void startRoadSpeakFetchMessageTimer() {
@@ -174,12 +179,12 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	public void pauseRoadSpeakFetchMessageTimer() {
 		roadspeakFetchMessageTimer.pause();
 	}
-	
-	public void onCountDownFinished(String id){
+
+	public void onCountDownFinished(String id) {
 		fetchAndPlayMessage();
 	}
-	
-	public void onCountDown(String id){
+
+	public void onCountDown(String id) {
 		roadspeakFetchControl.updateInfo();
 	}
 
@@ -307,6 +312,10 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				settings.ROADSPEAK_UPDATE_URL, R.string.roadspeak_update_url,
 				R.string.roadspeak_update_url_description));
 		cat.addPreference(activity.createEditTextPreference(
+				settings.ROADSPEAK_UPDATE_ENVIRONMENT_URL,
+				R.string.roadspeak_update_environment_url,
+				R.string.roadspeak_update_environment_url_description));
+		cat.addPreference(activity.createEditTextPreference(
 				settings.ROADSPEAK_UPLOAD_URL, R.string.roadspeak_upload_url,
 				R.string.roadspeak_upload_url_description));
 		cat.addPreference(activity.createEditTextPreference(
@@ -318,18 +327,35 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 						15, 30, 60, 120 }, 1, R.string.roadspeak_interval,
 				R.string.roadspeak_interval_description));
 	}
-	
-	
+
+	@Override
+	public void mapActivityResume(MapActivity activity) {
+		this.map = activity;
+		final int UPDATE_INTERVAL = 5;
+		if (updateLocationTimer == null) {
+			updateLocationTimer = new SimpleTimer(
+					ROADSPEAK_UPDATE_LOCATION_TIMER_ID) {
+				@Override
+				public void onCountDown() {
+					Location loc = map.getLastKnownLocation();
+					LatLon finalLoc = map.getRoutingHelper().getFinalLocation();
+					map.getRoadSpeakHelper().updateEnvironment(loc, finalLoc, map.ACCURACY_FOR_GPX_AND_ROUTING);
+				}
+			};
+			updateLocationTimer.reset(0, UPDATE_INTERVAL, false);
+		}
+	}
 
 	private class SimpleTimer {
 		public String id;
 		private int seconds;
 		private int interval;
+		private boolean hasLimit = true;
 		private ScheduledExecutorService scheduler = Executors
 				.newScheduledThreadPool(5);
 		private ScheduledFuture schedulerHandler;
-		
-		public SimpleTimer(String id){
+
+		public SimpleTimer(String id) {
 			this.id = id;
 		}
 
@@ -338,34 +364,44 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		}
 
 		public synchronized boolean countdown() {
-			if (this.seconds > 0) {
-				this.seconds -= interval;
-				handler.post(new Runnable(){
+			if (!hasLimit) {
+				handler.post(new Runnable() {
 					@Override
 					public void run() {
-						SimpleTimer.this.onCountDown();		
-					}					
+						SimpleTimer.this.onCountDown();
+					}
+				});
+				return true;
+			}
+			if (this.seconds > 0) {
+				this.seconds -= interval;
+				handler.post(new Runnable() {
+					@Override
+					public void run() {
+						SimpleTimer.this.onCountDown();
+					}
 				});
 				return true;
 			}
 			return false;
 		}
 
-		public void reset(int seconds, int interval) {
+		public void reset(int seconds, int interval, boolean hasLimit) {
 			this.seconds = seconds;
 			this.interval = interval;
+			this.hasLimit = hasLimit;
 		}
 
 		public void start() {
 			schedulerHandler = scheduler.scheduleAtFixedRate(new Runnable() {
 				@Override
 				public void run() {
-					if(!countdown()){
-						handler.post(new Runnable(){
+					if (!countdown()) {
+						handler.post(new Runnable() {
 							@Override
 							public void run() {
 								SimpleTimer.this.onCountDownFinish();
-							}							
+							}
 						});
 						schedulerHandler.cancel(true);
 					}
@@ -373,16 +409,16 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 
 			}, interval, interval, TimeUnit.SECONDS);
 		}
-		
-		public void pause(){
+
+		public void pause() {
 			schedulerHandler.cancel(true);
 		}
-		
-		public void onCountDown(){
+
+		public void onCountDown() {
 			RoadSpeakPlugin.this.onCountDown(SimpleTimer.this.id);
 		}
-		
-		public void onCountDownFinish(){
+
+		public void onCountDownFinish() {
 			RoadSpeakPlugin.this.onCountDownFinished(SimpleTimer.this.id);
 		}
 	}

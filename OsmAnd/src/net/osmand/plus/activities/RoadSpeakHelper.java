@@ -9,9 +9,11 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 
 import net.osmand.LogUtil;
+import net.osmand.osm.LatLon;
 import net.osmand.plus.OsmandApplication;
 import net.osmand.plus.OsmandSettings;
 import net.osmand.plus.R;
+import net.osmand.plus.activities.RoadSpeakHelper.DataSourceObject;
 import net.osmand.plus.roadspeak.RoadSpeakPlugin;
 
 import org.apache.commons.logging.Log;
@@ -32,6 +34,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.content.Context;
+import android.location.Location;
 import android.media.MediaRecorder;
 import android.media.MediaRecorder.AudioSource;
 import android.media.MediaRecorder.OutputFormat;
@@ -52,6 +55,7 @@ public class RoadSpeakHelper {
 	private static String recordFilename;
 
 	private RoadSpeakPlugin roadspeakPlugin;
+	private ArrayList<DataSourceObject> dataSourceObjectList = new ArrayList<DataSourceObject>();
 
 	public void setRoadspeakPlugin(RoadSpeakPlugin roadspeakPlugin) {
 		this.roadspeakPlugin = roadspeakPlugin;
@@ -294,5 +298,265 @@ public class RoadSpeakHelper {
 			roadspeakPlugin.startRoadSpeakFetchMessageTimer();
 		}
 	}
+	
+	private class RoadSpeakEnvironmentUpdater extends AsyncTask<EnvironmentUpdateMessage, Void, Void> {
 
+		@Override
+		protected Void doInBackground(EnvironmentUpdateMessage... args) {
+			for(EnvironmentUpdateMessage message : args){
+				updateEnvironment(message);
+			}
+			return null;
+		}
+	}
+	
+	private static class EnvironmentUpdateMessage{
+		public Location loc;
+		public LatLon finalLoc;
+		public float accuracyForGpxAndRouting;
+		
+		public EnvironmentUpdateMessage(final Location loc, final LatLon finalLoc, final float accuracyForGpxAndRouting){
+			this.loc = loc;
+			this.finalLoc = finalLoc;
+			this.accuracyForGpxAndRouting = accuracyForGpxAndRouting;
+		}
+	}
+	
+
+	public void updateEnvironment(Location loc, LatLon finalLoc,
+			float accuracyForGpxAndRouting) {
+		EnvironmentUpdateMessage message = new EnvironmentUpdateMessage(loc, finalLoc, accuracyForGpxAndRouting);
+		new RoadSpeakEnvironmentUpdater().execute(message);
+	}
+
+	private void updateEnvironment(EnvironmentUpdateMessage message) {
+		Location loc = message.loc;
+		LatLon finalLoc = message.finalLoc;
+		float accuracyForGpxAndRouting = message.accuracyForGpxAndRouting;
+		
+		if (loc != null) {
+		if (!loc.hasAccuracy()
+				|| loc.getAccuracy() < accuracyForGpxAndRouting) {
+			String url = MessageFormat
+					.format(settings.ROADSPEAK_UPDATE_ENVIRONMENT_URL.get(),
+							settings.ROADSPEAK_USER_NAME.get(),
+							settings.ROADSPEAK_USER_PASSWORD.get(),
+							(float) loc.getLatitude(),
+							(float) loc.getLongitude(),
+							(float) loc.getAltitude(),
+							(float) loc.getSpeed(),
+							(float) loc.getBearing(),
+							(float) loc.getAccuracy(),
+							loc.getTime(),
+							(finalLoc == null ? "" : (float) finalLoc
+									.getLatitude()), (finalLoc == null ? ""
+									: (float) finalLoc.getLongitude()));
+			try {
+				HttpParams params = new BasicHttpParams();
+				HttpConnectionParams.setConnectionTimeout(params, 15000);
+				DefaultHttpClient httpclient = new DefaultHttpClient(params);
+				HttpRequestBase method = new HttpGet(url);
+				LOG.info("RoadSpeak Update Environment " + url);
+				HttpResponse response = httpclient.execute(method);
+				if (response.getStatusLine() == null
+						|| response.getStatusLine().getStatusCode() != 200) {
+					String msg;
+					if (response.getStatusLine() != null) {
+						msg = ctx.getString(R.string.failed_op);
+					} else {
+						msg = response.getStatusLine().getStatusCode()
+								+ " : "
+								+ response.getStatusLine()
+										.getReasonPhrase();
+					}
+					LOG.error("Error fetching RoadSpeak update environment response : "
+							+ msg);
+				} else {
+					InputStream is = response.getEntity().getContent();
+					StringBuilder responseBody = new StringBuilder();
+					if (is != null) {
+						BufferedReader in = new BufferedReader(
+								new InputStreamReader(is, "UTF-8"));
+						String s;
+						while ((s = in.readLine()) != null) {
+							responseBody.append(s);
+						}
+						is.close();
+					}
+					httpclient.getConnectionManager().shutdown();
+					LOG.info("RoadSpeak Update Environment response : "
+							+ responseBody.toString());
+
+					updateEnvrionment(responseBody.toString());
+				}
+			} catch (Exception e) {
+				LOG.error("Failed connect to " + url, e);
+			}
+		}
+	}
+		
+	}
+
+	private synchronized void updateEnvrionment(String responseBody) {
+		try {
+			JSONObject or = new JSONObject(responseBody);
+			dataSourceObjectList.clear();
+			JSONArray array = or.getJSONArray(ctx
+					.getString(R.string.roadspeak_data_source_object_key));
+			for (int i = 0; i < array.length(); i++) {
+				JSONObject o = array.getJSONObject(i);
+				int type = o.getInt(ctx.getString(R.string.roadspeak_type_key));
+				float lat = (float) o.getDouble(ctx
+						.getString(R.string.roadspeak_lat_key));
+				float lon = (float) o.getDouble(ctx
+						.getString(R.string.roadspeak_lon_key));
+				float alt = (float) o.getDouble(ctx
+						.getString(R.string.roadspeak_alt_key));
+				float speed = (float) o.getDouble(ctx
+						.getString(R.string.roadspeak_speed_key));
+				float bearing = (float) o.getDouble(ctx
+						.getString(R.string.roadspeak_bearing_key));
+				float accuracy = (float) o.getDouble(ctx
+						.getString(R.string.roadspeak_accuracy_key));
+				long time = o.getLong(ctx
+						.getString(R.string.roadspeak_time_key));
+				int userId = o.getInt(ctx
+						.getString(R.string.roadspeak_userid_key));
+				String username = o.getString(ctx
+						.getString(R.string.roadspeak_username_key));
+				DataSourceObject obj;
+				switch (type) {
+				case FriendObject.TYPE: {
+					obj = new FriendObject(lat, lon, alt, speed, bearing,
+							accuracy, time, userId, username);
+					dataSourceObjectList.add(obj);
+					break;
+				}
+				case MessageObject.TYPE: {
+					int messageId = o.getInt(ctx
+							.getString(R.string.roadspeak_message_id_key));
+					obj = new MessageObject(lat, lon, alt, speed, bearing,
+							accuracy, time, messageId, userId, username);
+					dataSourceObjectList.add(obj);
+					break;
+				}
+				default: {
+					LOG.error("Error reading environment message");
+				}
+				}
+
+			}
+
+		} catch (Exception e) {
+			LOG.error("Failed reading RoadSpeak update environment response", e);
+		}
+	}
+
+	public static class DataSourceObject {
+		protected float lat;
+		protected float lon;
+		protected float alt;
+		protected float speed;
+		protected float bearing;
+		protected float accuracy;
+		protected long time;
+
+		public DataSourceObject(float lat, float lon, float alt, float speed,
+				float bearing, float accuracy, long time) {
+			this.lat = lat;
+			this.lon = lon;
+			this.alt = alt;
+			this.speed = speed;
+			this.bearing = bearing;
+			this.accuracy = accuracy;
+			this.time = time;
+		}
+
+		public float getLat() {
+			return lat;
+		}
+
+		public float getLon() {
+			return lon;
+		}
+
+		public float getAlt() {
+			return alt;
+		}
+
+		public float getSpeed() {
+			return speed;
+		}
+
+		public float getBearing() {
+			return bearing;
+		}
+
+		public float getAccuracy() {
+			return accuracy;
+		}
+
+		public long getTime() {
+			return time;
+		}
+	}
+
+	public static class FriendObject extends DataSourceObject {
+		public final static int TYPE = 1;
+		private int userId;
+		private String username;
+
+		public FriendObject(float lat, float lon, float alt, float speed,
+				float bearing, float accuracy, long time, int userId,
+				String username) {
+			super(lat, lon, alt, speed, bearing, accuracy, time);
+			this.userId = userId;
+			this.username = username;
+		}
+
+		public int getUserId() {
+			return userId;
+		}
+
+		public String getUsername() {
+			return username;
+		}
+	}
+
+	public static class MessageObject extends DataSourceObject {
+		public final static int TYPE = 2;
+		private int messageId;
+		private int userId;
+		private String username;
+
+		public MessageObject(float lat, float lon, float alt, float speed,
+				float bearing, float accuracy, long time, int messageId,
+				int userId, String username) {
+			super(lat, lon, alt, speed, bearing, accuracy, time);
+			this.messageId = messageId;
+			this.userId = userId;
+			this.username = username;
+		}
+
+		public int getMessageId() {
+			return messageId;
+		}
+
+		public int getUserId() {
+			return userId;
+		}
+
+		public String getUsername() {
+			return username;
+		}
+	}
+
+	public synchronized void searchDataSourceObject(float top, float left, float bottom,
+			float right, int zoom, ArrayList<DataSourceObject> toFill) {
+		for(DataSourceObject o : dataSourceObjectList){
+			if(o.getLat() < top && o.getLat() > bottom && o.getLon() > left && o.getLon() < right){
+				toFill.add(o);
+			}
+		}
+	}
 }
