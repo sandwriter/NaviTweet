@@ -33,6 +33,7 @@ import net.osmand.plus.ResourceManager;
 import net.osmand.plus.SQLiteTileSource;
 import net.osmand.plus.rastermaps.OsmandRasterMapsPlugin;
 import net.osmand.plus.render.MapVectorLayer;
+import net.osmand.plus.roadspeak.RoadSpeakDataSourceLayer;
 import net.osmand.plus.routing.RoutingHelper;
 import net.osmand.plus.views.ContextMenuLayer;
 import net.osmand.plus.views.FavoritesLayer;
@@ -88,6 +89,7 @@ public class MapActivityLayers {
 	private ContextMenuLayer contextMenuLayer;
 	private RouteInfoLayer routeInfoLayer;
 	private MapControlsLayer mapControlsLayer;
+	private RoadSpeakDataSourceLayer roadSpeakDataSourceLayer;
 
 	public MapActivityLayers(MapActivity activity) {
 		this.activity = activity;
@@ -132,6 +134,11 @@ public class MapActivityLayers {
 		// 5.5 transport info layer 
 		transportInfoLayer = new TransportInfoLayer(TransportRouteHelper.getInstance());
 		mapView.addLayer(transportInfoLayer, 5.5f);
+		
+		// 5.8 RoadSpeak data source layer
+		roadSpeakDataSourceLayer = new RoadSpeakDataSourceLayer();
+		mapView.addLayer(roadSpeakDataSourceLayer, 5.8f);
+		
 		// 6. point location layer 
 		locationLayer = new PointLocationLayer();
 		mapView.addLayer(locationLayer, 6);
@@ -150,6 +157,8 @@ public class MapActivityLayers {
 		// 11. route info layer
 		mapControlsLayer = new MapControlsLayer(activity);
 		mapView.addLayer(mapControlsLayer, 11);
+		
+		
 		
 		OsmandPlugin.createLayers(mapView, activity);
 	}

@@ -168,7 +168,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	}
 
 	public void resetRoadSpeakFetchMessageTimer() {
-		final int seconds = settings.ROADSPEAK_INTERVAL.get();
+		final int seconds = settings.ROADSPEAK_DIGEST_INTERVAL.get();
 		roadspeakFetchMessageTimer.reset(seconds, 1, true);
 	}
 
@@ -323,15 +323,19 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				R.string.roadspeak_download_url,
 				R.string.roadspeak_download_url_description));
 		cat.addPreference(activity.createTimeListPreference(
-				settings.ROADSPEAK_INTERVAL, new int[] {}, new int[] { 5, 10,
-						15, 30, 60, 120 }, 1, R.string.roadspeak_interval,
-				R.string.roadspeak_interval_description));
+				settings.ROADSPEAK_DIGEST_INTERVAL, new int[] {}, new int[] {
+						5, 10, 15, 30, 60, 120 }, 1,
+				R.string.roadspeak_digest_interval,
+				R.string.roadspeak_digest_interval_description));
+		cat.addPreference(activity.createTimeListPreference(
+				settings.ROADSPEAK_UPDATE_INTERVAL, new int[] { 5, 10, 30 },
+				new int[] { 1, 5, 10 }, 1, R.string.roadspeak_update_interval,
+				R.string.roadspeak_update_interval_description));
 	}
 
 	@Override
 	public void mapActivityResume(MapActivity activity) {
 		this.map = activity;
-		final int UPDATE_INTERVAL = 5;
 		if (updateLocationTimer == null) {
 			updateLocationTimer = new SimpleTimer(
 					ROADSPEAK_UPDATE_LOCATION_TIMER_ID) {
@@ -339,11 +343,19 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				public void onCountDown() {
 					Location loc = map.getLastKnownLocation();
 					LatLon finalLoc = map.getRoutingHelper().getFinalLocation();
-					map.getRoadSpeakHelper().updateEnvironment(loc, finalLoc, map.ACCURACY_FOR_GPX_AND_ROUTING);
+					map.getRoadSpeakHelper().updateEnvironment(loc, finalLoc,
+							map.ACCURACY_FOR_GPX_AND_ROUTING);
 				}
 			};
-			updateLocationTimer.reset(0, UPDATE_INTERVAL, false);
+			updateLocationTimer.reset(0, settings.ROADSPEAK_UPDATE_INTERVAL.get(), false);
 		}
+		updateLocationTimer.start();
+	}
+
+	@Override
+	public void mapActivityPause(MapActivity activity) {
+		super.mapActivityPause(activity);
+		updateLocationTimer.pause();
 	}
 
 	private class SimpleTimer {

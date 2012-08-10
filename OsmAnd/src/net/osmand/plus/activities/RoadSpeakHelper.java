@@ -82,7 +82,7 @@ public class RoadSpeakHelper {
 	}
 
 	public void fetchData(long time) {
-		if (time - lastTimeUpdated > settings.ROADSPEAK_INTERVAL.get() * 1000) {
+		if (time - lastTimeUpdated > settings.ROADSPEAK_DIGEST_INTERVAL.get() * 1000) {
 			new RoadSpeakFetcher().execute();
 			lastTimeUpdated = time;
 		}
@@ -161,13 +161,13 @@ public class RoadSpeakHelper {
 
 	}
 
-	public void sendMessage(double lat, double lon, double alt, double speed,
+	public void sendMessage(double lat, double lon, double alt, double speed, double bearing,
 			double hdop, long time) {
 		if (recorder != null) {
 			recorder.stop();
 			recorder.release();
 			recorder = null;
-			uploadMessage(lat, lon, alt, speed, hdop, time);
+			uploadMessage(lat, lon, alt, speed, bearing, hdop, time);
 		}
 	}
 
@@ -178,19 +178,21 @@ public class RoadSpeakHelper {
 		private final float lon;
 		private final float alt;
 		private final float speed;
+		private final float bearing;
 		private final float hdop;
 		private final long time;
 		private final File messageFile;
 
 		public RoadSpeakMessage(String username, String password, float lat,
-				float lon, float alt, float speed, float hdop, long time,
-				File messageFile) {
+				float lon, float alt, float speed, float bearing, float hdop,
+				long time, File messageFile) {
 			this.username = username;
 			this.password = password;
 			this.lat = lat;
 			this.lon = lon;
 			this.alt = alt;
 			this.speed = speed;
+			this.bearing = bearing;
 			this.hdop = hdop;
 			this.time = time;
 			this.messageFile = messageFile;
@@ -198,13 +200,13 @@ public class RoadSpeakHelper {
 	}
 
 	private void uploadMessage(double lat, double lon, double alt,
-			double speed, double hdop, long time) {
+			double speed, double bearing, double hdop, long time) {
 		File messageFile = new File(recordFilename);
 		RoadSpeakMessage message = new RoadSpeakMessage(
 				settings.ROADSPEAK_USER_NAME.get(),
 				settings.ROADSPEAK_USER_PASSWORD.get(), (float) lat,
-				(float) lon, (float) alt, (float) speed, (float) hdop, time,
-				messageFile);
+				(float) lon, (float) alt, (float) speed, (float) bearing,
+				(float) hdop, time, messageFile);
 		new RoadSpeakUploader().execute(message);
 	}
 
@@ -219,6 +221,7 @@ public class RoadSpeakHelper {
 						settings.ROADSPEAK_UPLOAD_URL.get());
 				MultipartEntity entity = new MultipartEntity();
 				try {
+					// TODO: sync with roadspeak_XXX_key
 					entity.addPart(ctx.getString(R.string.username_key),
 							new StringBody(message.username));
 					entity.addPart(ctx.getString(R.string.password_key),
@@ -231,6 +234,8 @@ public class RoadSpeakHelper {
 							new StringBody(Float.toString(message.alt)));
 					entity.addPart(ctx.getString(R.string.speed_key),
 							new StringBody(Float.toString(message.speed)));
+					entity.addPart(ctx.getString(R.string.roadspeak_bearing_key),
+							new StringBody(Float.toString(message.bearing)));
 					entity.addPart(ctx.getString(R.string.hdop_key),
 							new StringBody(Float.toString(message.hdop)));
 					entity.addPart(ctx.getString(R.string.time_key),
@@ -298,34 +303,36 @@ public class RoadSpeakHelper {
 			roadspeakPlugin.startRoadSpeakFetchMessageTimer();
 		}
 	}
-	
-	private class RoadSpeakEnvironmentUpdater extends AsyncTask<EnvironmentUpdateMessage, Void, Void> {
+
+	private class RoadSpeakEnvironmentUpdater extends
+			AsyncTask<EnvironmentUpdateMessage, Void, Void> {
 
 		@Override
 		protected Void doInBackground(EnvironmentUpdateMessage... args) {
-			for(EnvironmentUpdateMessage message : args){
+			for (EnvironmentUpdateMessage message : args) {
 				updateEnvironment(message);
 			}
 			return null;
 		}
 	}
-	
-	private static class EnvironmentUpdateMessage{
+
+	private static class EnvironmentUpdateMessage {
 		public Location loc;
 		public LatLon finalLoc;
 		public float accuracyForGpxAndRouting;
-		
-		public EnvironmentUpdateMessage(final Location loc, final LatLon finalLoc, final float accuracyForGpxAndRouting){
+
+		public EnvironmentUpdateMessage(final Location loc,
+				final LatLon finalLoc, final float accuracyForGpxAndRouting) {
 			this.loc = loc;
 			this.finalLoc = finalLoc;
 			this.accuracyForGpxAndRouting = accuracyForGpxAndRouting;
 		}
 	}
-	
 
 	public void updateEnvironment(Location loc, LatLon finalLoc,
 			float accuracyForGpxAndRouting) {
-		EnvironmentUpdateMessage message = new EnvironmentUpdateMessage(loc, finalLoc, accuracyForGpxAndRouting);
+		EnvironmentUpdateMessage message = new EnvironmentUpdateMessage(loc,
+				finalLoc, accuracyForGpxAndRouting);
 		new RoadSpeakEnvironmentUpdater().execute(message);
 	}
 
@@ -333,68 +340,69 @@ public class RoadSpeakHelper {
 		Location loc = message.loc;
 		LatLon finalLoc = message.finalLoc;
 		float accuracyForGpxAndRouting = message.accuracyForGpxAndRouting;
-		
-		if (loc != null) {
-		if (!loc.hasAccuracy()
-				|| loc.getAccuracy() < accuracyForGpxAndRouting) {
-			String url = MessageFormat
-					.format(settings.ROADSPEAK_UPDATE_ENVIRONMENT_URL.get(),
-							settings.ROADSPEAK_USER_NAME.get(),
-							settings.ROADSPEAK_USER_PASSWORD.get(),
-							(float) loc.getLatitude(),
-							(float) loc.getLongitude(),
-							(float) loc.getAltitude(),
-							(float) loc.getSpeed(),
-							(float) loc.getBearing(),
-							(float) loc.getAccuracy(),
-							loc.getTime(),
-							(finalLoc == null ? "" : (float) finalLoc
-									.getLatitude()), (finalLoc == null ? ""
-									: (float) finalLoc.getLongitude()));
-			try {
-				HttpParams params = new BasicHttpParams();
-				HttpConnectionParams.setConnectionTimeout(params, 15000);
-				DefaultHttpClient httpclient = new DefaultHttpClient(params);
-				HttpRequestBase method = new HttpGet(url);
-				LOG.info("RoadSpeak Update Environment " + url);
-				HttpResponse response = httpclient.execute(method);
-				if (response.getStatusLine() == null
-						|| response.getStatusLine().getStatusCode() != 200) {
-					String msg;
-					if (response.getStatusLine() != null) {
-						msg = ctx.getString(R.string.failed_op);
-					} else {
-						msg = response.getStatusLine().getStatusCode()
-								+ " : "
-								+ response.getStatusLine()
-										.getReasonPhrase();
-					}
-					LOG.error("Error fetching RoadSpeak update environment response : "
-							+ msg);
-				} else {
-					InputStream is = response.getEntity().getContent();
-					StringBuilder responseBody = new StringBuilder();
-					if (is != null) {
-						BufferedReader in = new BufferedReader(
-								new InputStreamReader(is, "UTF-8"));
-						String s;
-						while ((s = in.readLine()) != null) {
-							responseBody.append(s);
-						}
-						is.close();
-					}
-					httpclient.getConnectionManager().shutdown();
-					LOG.info("RoadSpeak Update Environment response : "
-							+ responseBody.toString());
 
-					updateEnvrionment(responseBody.toString());
+		//TODO: why use float?
+		if (loc != null) {
+			if (!loc.hasAccuracy()
+					|| loc.getAccuracy() < accuracyForGpxAndRouting) {
+				String url = MessageFormat
+						.format(settings.ROADSPEAK_UPDATE_ENVIRONMENT_URL.get(),
+								settings.ROADSPEAK_USER_NAME.get(),
+								settings.ROADSPEAK_USER_PASSWORD.get(),
+								Float.toString((float)loc.getLatitude()),
+								Float.toString((float) loc.getLongitude()),
+								Float.toString((float) loc.getAltitude()),
+								Float.toString((float) loc.getSpeed()),
+								Float.toString((float) loc.getBearing()),
+								Float.toString((float) loc.getAccuracy()),
+								Long.toString(loc.getTime()),
+								(finalLoc == null ? "" : Float.toString((float) finalLoc
+										.getLatitude())), (finalLoc == null ? ""
+										: Float.toString((float) finalLoc.getLongitude())));
+				try {
+					HttpParams params = new BasicHttpParams();
+					HttpConnectionParams.setConnectionTimeout(params, 15000);
+					DefaultHttpClient httpclient = new DefaultHttpClient(params);
+					HttpRequestBase method = new HttpGet(url);
+					LOG.info("RoadSpeak Update Environment " + url);
+					HttpResponse response = httpclient.execute(method);
+					if (response.getStatusLine() == null
+							|| response.getStatusLine().getStatusCode() != 200) {
+						String msg;
+						if (response.getStatusLine() != null) {
+							msg = ctx.getString(R.string.failed_op);
+						} else {
+							msg = response.getStatusLine().getStatusCode()
+									+ " : "
+									+ response.getStatusLine()
+											.getReasonPhrase();
+						}
+						LOG.error("Error fetching RoadSpeak update environment response : "
+								+ msg);
+					} else {
+						InputStream is = response.getEntity().getContent();
+						StringBuilder responseBody = new StringBuilder();
+						if (is != null) {
+							BufferedReader in = new BufferedReader(
+									new InputStreamReader(is, "UTF-8"));
+							String s;
+							while ((s = in.readLine()) != null) {
+								responseBody.append(s);
+							}
+							is.close();
+						}
+						httpclient.getConnectionManager().shutdown();
+						LOG.info("RoadSpeak Update Environment response : "
+								+ responseBody.toString());
+
+						updateEnvrionment(responseBody.toString());
+					}
+				} catch (Exception e) {
+					LOG.error("Failed connect to " + url, e);
 				}
-			} catch (Exception e) {
-				LOG.error("Failed connect to " + url, e);
 			}
 		}
-	}
-		
+
 	}
 
 	private synchronized void updateEnvrionment(String responseBody) {
@@ -551,10 +559,12 @@ public class RoadSpeakHelper {
 		}
 	}
 
-	public synchronized void searchDataSourceObject(float top, float left, float bottom,
-			float right, int zoom, ArrayList<DataSourceObject> toFill) {
-		for(DataSourceObject o : dataSourceObjectList){
-			if(o.getLat() < top && o.getLat() > bottom && o.getLon() > left && o.getLon() < right){
+	public synchronized void searchDataSourceObject(float top, float left,
+			float bottom, float right, int zoom,
+			ArrayList<DataSourceObject> toFill) {
+		for (DataSourceObject o : dataSourceObjectList) {
+			if (o.getLat() < top && o.getLat() > bottom && o.getLon() > left
+					&& o.getLon() < right) {
 				toFill.add(o);
 			}
 		}

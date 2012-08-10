@@ -550,7 +550,9 @@ public class OsmandSettings {
 	
 	public final OsmandPreference<String> ROADSPEAK_DOWNLOAD_URL = new StringPreference("roadspeak_download_url", "http://qbert.rutgers.edu:8080/download.php").makeGlobal();
 	
-	public final CommonPreference<Integer> ROADSPEAK_INTERVAL = new IntPreference("roadspeak_interval", 900).makeGlobal();
+	public final CommonPreference<Integer> ROADSPEAK_DIGEST_INTERVAL = new IntPreference("roadspeak_digest_interval", 900).makeGlobal();
+	
+	public final CommonPreference<Integer> ROADSPEAK_UPDATE_INTERVAL = new IntPreference("roadspeak_update_interval", 10).makeGlobal();
 		
 	// this value boolean is synchronized with settings_pref.xml preference offline POI/Bugs edition
 	public final OsmandPreference<Boolean> OFFLINE_EDITION = new BooleanPreference("offline_edition", false).makeGlobal();

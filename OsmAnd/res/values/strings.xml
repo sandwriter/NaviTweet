@@ -1122,8 +1122,8 @@ You can enable (online or cached) tile map sources, tracking settings, and many 
 <string name="people">ppl</string>
 <string name="roadspeak_update_url">RoadSpeak update address</string>
 <string name="roadspeak_update_url_description">Specify the web address with parameter syntax: username={0}, password={1}</string>
-<string name="roadspeak_interval">RoadSpeak update interval</string>
-<string name="roadspeak_interval_description">Specify RoadSpeak update interval</string>
+<string name="roadspeak_digest_interval">RoadSpeak play digest interval</string>
+<string name="roadspeak_digest_interval_description">Specify RoadSpeak digest playing interval</string>
 <string name="roadspeak_online_member_count_key">omc</string>
 <string name="roadspeak_grouplist_name_key">rgn</string>
 <string name="roadspeak_upload_url">RoadSpeak upload address</string>
@@ -1155,4 +1155,6 @@ You can enable (online or cached) tile map sources, tracking settings, and many 
 <string name="roadspeak_userid_key">userid</string>
 <string name="roadspeak_username_key">username</string>
 <string name="roadspeak_message_id_key">messageid</string>
+<string name="roadspeak_update_interval">RoadSpeak update interval</string>
+<string name="roadspeak_update_interval_description">Specify RoadSpeak update interval</string>
 </resources>

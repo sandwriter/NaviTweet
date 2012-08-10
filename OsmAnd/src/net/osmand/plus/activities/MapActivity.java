@@ -1113,8 +1113,8 @@ public class MapActivity extends AccessibleActivity implements
 	public RoutingHelper getRoutingHelper() {
 		return routingHelper;
 	}
-	
-	public RoadSpeakHelper getRoadSpeakHelper(){
+
+	public RoadSpeakHelper getRoadSpeakHelper() {
 		return roadSpeakHelper;
 	}
 
@@ -1410,8 +1410,8 @@ public class MapActivity extends AccessibleActivity implements
 				Location location = getLastKnownLocation();
 				roadSpeakHelper.sendMessage(location.getLatitude(),
 						location.getLongitude(), location.getAltitude(),
-						location.getSpeed(), location.getAccuracy(),
-						location.getTime());
+						location.getSpeed(), location.getBearing(),
+						location.getAccuracy(), location.getTime());
 			}
 		});
 		final AlertDialog dlg = b.create();
@@ -1426,7 +1426,7 @@ public class MapActivity extends AccessibleActivity implements
 				dlg.cancel();
 			}
 		});
-		roadSpeakDialogEnabled = true;	
+		roadSpeakDialogEnabled = true;
 		roadSpeakHelper.recordMessage();
 	}
 
