@@ -56,6 +56,13 @@ public class RoadSpeakHelper {
 
 	private RoadSpeakPlugin roadspeakPlugin;
 	private ArrayList<DataSourceObject> dataSourceObjectList = new ArrayList<DataSourceObject>();
+	public LatLon finalLocation;
+	public Location currentLocation;
+
+	@SuppressWarnings("unchecked")
+	public synchronized ArrayList<DataSourceObject> cloneDataSourceObjectList() {
+		return (ArrayList<DataSourceObject>) dataSourceObjectList.clone();
+	}
 
 	public void setRoadspeakPlugin(RoadSpeakPlugin roadspeakPlugin) {
 		this.roadspeakPlugin = roadspeakPlugin;
@@ -297,7 +304,9 @@ public class RoadSpeakHelper {
 		}
 	}
 
-	public void EnableRoadSpeakMessage() {
+	public void EnableRoadSpeakMessage(LatLon finalLocation, Location currentLocation) {
+		this.finalLocation = finalLocation;
+		this.currentLocation = currentLocation;
 		if (roadspeakPlugin != null) {
 			roadspeakPlugin.resetRoadSpeakFetchMessageTimer();
 			roadspeakPlugin.startRoadSpeakFetchMessageTimer();

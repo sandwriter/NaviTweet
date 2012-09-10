@@ -1,8 +1,16 @@
 package net.osmand.plus.roadspeak;
 
-import java.text.MessageFormat;
+import gnu.trove.map.hash.TLongObjectHashMap;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.Iterator;
+import java.util.PriorityQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -10,20 +18,34 @@ import java.util.concurrent.TimeUnit;
 
 import net.osmand.LogUtil;
 import net.osmand.OsmAndFormatter;
+import net.osmand.binary.BinaryMapIndexReader;
+import net.osmand.binary.RouteDataObject;
 import net.osmand.osm.LatLon;
+import net.osmand.osm.MapUtils;
 import net.osmand.plus.OsmandApplication;
 import net.osmand.plus.OsmandPlugin;
 import net.osmand.plus.OsmandSettings;
 import net.osmand.plus.R;
+import net.osmand.plus.ResourceManager;
 import net.osmand.plus.activities.ApplicationMode;
 import net.osmand.plus.activities.MapActivity;
+import net.osmand.plus.activities.RoadSpeakHelper.DataSourceObject;
 import net.osmand.plus.activities.SettingsActivity;
+import net.osmand.plus.render.NativeOsmandLibrary;
+import net.osmand.plus.routing.RoutingHelper;
 import net.osmand.plus.views.MapInfoControl;
 import net.osmand.plus.views.MapInfoLayer;
 import net.osmand.plus.views.OsmandMapTileView;
 import net.osmand.plus.views.TextInfoControl;
+import net.osmand.router.BinaryRoutePlanner;
+import net.osmand.router.BinaryRoutePlanner.RouteSegment;
+import net.osmand.router.GeneralRouter.GeneralRouterProfile;
+import net.osmand.router.RoutingConfiguration;
+import net.osmand.router.RoutingContext;
+import net.osmand.router.RoutingContext.RoutingTile;
 
 import org.apache.commons.logging.Log;
+import org.xml.sax.SAXException;
 
 import android.app.AlertDialog;
 import android.app.AlertDialog.Builder;
@@ -68,6 +90,8 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	private SimpleTimer updateLocationTimer = null;
 
 	private MapActivity map;
+	private RoutingHelper routingHelper;
+	private MessageRouteHelper messageRouteHelper;
 
 	public RoadSpeakPlugin(OsmandApplication app) {
 		this.app = app;
@@ -161,10 +185,23 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	}
 
 	private void fetchAndPlayMessage() {
-		Toast.makeText(map, "fetchandPlayMessage()", Toast.LENGTH_SHORT).show();
-		pauseRoadSpeakFetchMessageTimer();
-		resetRoadSpeakFetchMessageTimer();
-		startRoadSpeakFetchMessageTimer();
+		if (routingHelper == null) {
+			log.error("Routing Helper is null");
+		}
+		if (messageRouteHelper != null) {
+			messageRouteHelper.stopCalculation();
+			messageRouteHelper = null;
+		}
+		if (messageRouteHelper == null) {
+			messageRouteHelper = new MessageRouteHelper(
+					map.getRoadSpeakHelper().finalLocation,
+					map.getRoadSpeakHelper().currentLocation, map
+							.getRoadSpeakHelper().cloneDataSourceObjectList());
+			synchronized(app){
+				messageRouteHelper.route();
+			}
+			log.debug("exit the message router");
+		}
 	}
 
 	public void resetRoadSpeakFetchMessageTimer() {
@@ -180,8 +217,15 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		roadspeakFetchMessageTimer.pause();
 	}
 
+	public void onCountDownStart(String id) {
+		fetchAndPlayMessage();
+	}
+
 	public void onCountDownFinished(String id) {
 		fetchAndPlayMessage();
+		pauseRoadSpeakFetchMessageTimer();
+		resetRoadSpeakFetchMessageTimer();
+		startRoadSpeakFetchMessageTimer();
 	}
 
 	public void onCountDown(String id) {
@@ -336,6 +380,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	@Override
 	public void mapActivityResume(MapActivity activity) {
 		this.map = activity;
+		this.routingHelper = map.getRoutingHelper();
 		if (updateLocationTimer == null) {
 			updateLocationTimer = new SimpleTimer(
 					ROADSPEAK_UPDATE_LOCATION_TIMER_ID) {
@@ -344,10 +389,17 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					Location loc = map.getLastKnownLocation();
 					LatLon finalLoc = map.getRoutingHelper().getFinalLocation();
 					map.getRoadSpeakHelper().updateEnvironment(loc, finalLoc,
-							map.ACCURACY_FOR_GPX_AND_ROUTING);
+							MapActivity.ACCURACY_FOR_GPX_AND_ROUTING);
 				}
+
+				@Override
+				public void onStart() {
+
+				}
+
 			};
-			updateLocationTimer.reset(0, settings.ROADSPEAK_UPDATE_INTERVAL.get(), false);
+			updateLocationTimer.reset(0,
+					settings.ROADSPEAK_UPDATE_INTERVAL.get(), false);
 		}
 		updateLocationTimer.start();
 	}
@@ -405,6 +457,12 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		}
 
 		public void start() {
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					onStart();
+				}
+			}).start();
 			schedulerHandler = scheduler.scheduleAtFixedRate(new Runnable() {
 				@Override
 				public void run() {
@@ -422,6 +480,10 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			}, interval, interval, TimeUnit.SECONDS);
 		}
 
+		public void onStart() {
+			RoadSpeakPlugin.this.onCountDownStart(SimpleTimer.this.id);
+		}
+
 		public void pause() {
 			schedulerHandler.cancel(true);
 		}
@@ -433,6 +495,419 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		public void onCountDownFinish() {
 			RoadSpeakPlugin.this.onCountDownFinished(SimpleTimer.this.id);
 		}
+	}
+
+	private class MessageRouteHelper {
+		private LatLon finalLocation = null;
+		private Location currentLocation = null;
+		private ArrayList<DataSourceObject> dataSourceObjectList;
+
+		public MessageRouteHelper(LatLon finalLocation,
+				Location currentLocation,
+				ArrayList<DataSourceObject> cloneDataSourceObjectList) {
+			this.finalLocation = finalLocation;
+			this.currentLocation = currentLocation;
+			this.dataSourceObjectList = cloneDataSourceObjectList;
+		}
+
+		public void route() {
+			final PriorityQueue<DataSourceObject> target;
+			try {
+				RoutingHelper routingHelper = map.getRoutingHelper();
+				target = routeQuery(currentLocation, finalLocation,
+						dataSourceObjectList);
+				log.debug("routing finished");
+
+				if (target != null) {
+					handler.post(new Runnable() {
+						@Override
+						public void run() {
+							Toast.makeText(map,
+									"number of objects: " + target.size(),
+									Toast.LENGTH_SHORT).show();
+						}
+
+					});
+					log.debug("message posted");
+				}
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+		}
+
+		private PriorityQueue<DataSourceObject> routeQuery(
+				Location currentLocation, LatLon finalLocation,
+				ArrayList<DataSourceObject> dataSourceObjectList)
+				throws Exception {
+			TLongObjectHashMap<DataSourceObject> dataSourceObjects = new TLongObjectHashMap<DataSourceObject>();
+			Comparator<DataSourceObject> dataComparator = new Comparator<DataSourceObject>() {
+				@Override
+				public int compare(DataSourceObject o1, DataSourceObject o2) {
+					return Float.compare(o1.getSpeed(), o2.getSpeed());
+				}
+			};
+			PriorityQueue<DataSourceObject> result = new PriorityQueue<DataSourceObject>(
+					20, dataComparator);
+			ApplicationMode mode = routingHelper.getAppMode();
+			if (mode != ApplicationMode.CAR) {
+				return result;
+			}
+			log.debug("start routeQuery");
+			BinaryMapIndexReader[] files = app.getResourceManager()
+					.getRoutingMapFiles();
+			BinaryRoutePlanner router = new BinaryRoutePlanner(
+					NativeOsmandLibrary.getLoadedLibrary(), files);
+			File routingXml = app.getSettings().extendOsmandPath(
+					ResourceManager.ROUTING_XML);
+			log.debug("after init res");
+			RoutingConfiguration.Builder config;
+			if (routingXml.exists() && routingXml.canRead()) {
+				try {
+					config = RoutingConfiguration
+							.parseFromInputStream(new FileInputStream(
+									routingXml));
+				} catch (SAXException e) {
+					throw new IllegalStateException(e);
+				}
+			} else {
+				config = RoutingConfiguration.getDefault();
+			}
+
+			GeneralRouterProfile p = GeneralRouterProfile.CAR;
+			final RoutingContext ctx = new RoutingContext(config.build(p.name()
+					.toLowerCase(), true,
+					currentLocation.hasBearing() ? currentLocation.getBearing()
+							/ 180d * Math.PI : null));
+			prepareDataSourceObject(dataSourceObjectList, dataSourceObjects,
+					router, ctx);
+
+			RouteSegment start = router.findRouteSegment(
+					currentLocation.getLatitude(),
+					currentLocation.getLongitude(), ctx);
+			if (start == null) {
+				throw new Exception("start is null");
+			}
+			log.debug("found start segment");
+			checkDataSourceObject(start.getRoad().id, start.getSegmentStart(),
+					dataSourceObjects, result);
+
+			RouteSegment end = router.findRouteSegment(
+					finalLocation.getLatitude(), finalLocation.getLongitude(),
+					ctx);
+			if (end == null) {
+				throw new Exception("end is null");
+			}
+			boolean found = checkFoundRoute(start.getRoad().id,
+					start.getSegmentStart(), end);
+			if (found) {
+				return result;
+			}
+			log.debug("start routing");
+
+			ctx.timeToLoad = 0;
+			ctx.visitedSegments = 0;
+			ctx.timeToCalculate = System.nanoTime();
+			if (ctx.config.initialDirection != null) {
+				ctx.firstRoadId = (start.getRoad().id << BinaryRoutePlanner.ROUTE_POINTS)
+						+ start.getSegmentStart();
+				double plusDir = start.getRoad().directionRoute(
+						start.segmentStart, true);
+				double diff = plusDir - ctx.config.initialDirection;
+				if (Math.abs(MapUtils.alignAngleDifference(diff)) <= Math.PI / 3) {
+					ctx.firstRoadDirection = 1;
+				} else if (Math.abs(MapUtils.alignAngleDifference(diff
+						- Math.PI)) <= Math.PI / 3) {
+					ctx.firstRoadDirection = -1;
+				}
+			}
+
+			Comparator<RouteSegment> segmentsComparator = new Comparator<RouteSegment>() {
+				@Override
+				public int compare(RouteSegment o1, RouteSegment o2) {
+					return ctx.roadPriorityComparator(o1.distanceFromStart,
+							o1.distanceToEnd, o2.distanceFromStart,
+							o2.distanceToEnd);
+				}
+			};
+
+			PriorityQueue<RouteSegment> graphSegments = new PriorityQueue<RouteSegment>(
+					50, segmentsComparator);
+			TLongObjectHashMap<RouteSegment> visitedSegments = new TLongObjectHashMap<RouteSegment>();
+
+			int targetEndX = end.road.getPoint31XTile(end.segmentStart);
+			int targetEndY = end.road.getPoint31YTile(end.segmentStart);
+			int startX = start.road.getPoint31XTile(start.segmentStart);
+			int startY = start.road.getPoint31YTile(start.segmentStart);
+			float estimatedDistance = (float) router.h(ctx, targetEndX,
+					targetEndY, startX, startY);
+			start.distanceToEnd = estimatedDistance;
+
+			log.debug("start A*");
+			graphSegments.add(start);
+			while (!graphSegments.isEmpty()) {
+				RouteSegment segment = graphSegments.poll();
+				ctx.visitedSegments++;
+				final RouteDataObject road = segment.road;
+				final int middle = segment.segmentStart;
+				double obstaclePlusTime = 0;
+				double obstacleMinusTime = 0;
+
+				long nt = (road.getId() << BinaryRoutePlanner.ROUTE_POINTS)
+						+ middle;
+
+				visitedSegments.put(nt, segment);
+
+				int oneway = ctx.getRouter().isOneWay(road);
+				boolean minusAllowed;
+				boolean plusAllowed;
+				if (ctx.firstRoadId == nt) {
+					minusAllowed = ctx.firstRoadDirection <= 0;
+					plusAllowed = ctx.firstRoadDirection >= 0;
+				} else {
+					minusAllowed = oneway <= 0;
+					plusAllowed = oneway >= 0;
+				}
+
+				int d = plusAllowed ? 1 : -1;
+				if (segment.parentRoute != null) {
+					if (plusAllowed
+							&& middle < segment.getRoad().getPointsLength() - 1) {
+						obstaclePlusTime = ctx.getRouter().calculateTurnTime(
+								segment,
+								segment.getRoad().getPointsLength() - 1,
+								segment.parentRoute, segment.parentSegmentEnd);
+					}
+					if (minusAllowed && middle > 0) {
+						obstacleMinusTime = ctx.getRouter().calculateTurnTime(
+								segment, 0, segment.parentRoute,
+								segment.parentSegmentEnd);
+					}
+				}
+
+				double posSegmentDist = 0;
+				double negSegmentDist = 0;
+				while (minusAllowed || plusAllowed) {
+					int segmentEnd = middle + d;
+					boolean positive = d > 0;
+					if (!minusAllowed && d > 0) {
+						d++;
+					} else if (!plusAllowed && d < 0) {
+						d--;
+					} else {
+						if (d <= 0) {
+							d = -d + 1;
+						} else {
+							d = -d;
+						}
+					}
+					if (segmentEnd < 0) {
+						minusAllowed = false;
+						continue;
+					}
+					if (segmentEnd >= road.getPointsLength()) {
+						plusAllowed = false;
+						continue;
+					}
+
+					int x = road.getPoint31XTile(segmentEnd);
+					int y = road.getPoint31YTile(segmentEnd);
+					RoutingTile tile = router.loadRoutes(ctx, x, y);
+					if (positive) {
+						posSegmentDist += BinaryRoutePlanner.squareRootDist(x,
+								y, road.getPoint31XTile(segmentEnd - 1),
+								road.getPoint31YTile(segmentEnd - 1));
+					} else {
+						negSegmentDist += BinaryRoutePlanner.squareRootDist(x,
+								y, road.getPoint31XTile(segmentEnd + 1),
+								road.getPoint31YTile(segmentEnd + 1));
+					}
+					double obstacle = ctx.getRouter().defineObstacle(road,
+							segmentEnd);
+					if (positive) {
+						if (obstacle < 0) {
+							plusAllowed = false;
+							continue;
+						}
+						obstaclePlusTime += obstacle;
+					} else {
+						if (obstacle < 0) {
+							minusAllowed = false;
+							continue;
+						}
+						obstacleMinusTime += obstacle;
+					}
+
+					double priority = ctx.getRouter().defineSpeedPriority(road);
+					double speed = ctx.getRouter().defineSpeed(road) * priority;
+					if (speed == 0) {
+						speed = ctx.getRouter().getMinDefaultSpeed() * priority;
+					}
+					double distOnRoadToPass = positive ? posSegmentDist
+							: negSegmentDist;
+					double distStartObstacles = segment.distanceFromStart
+							+ (positive ? obstaclePlusTime : obstacleMinusTime)
+							+ distOnRoadToPass / speed;
+					double distToFinalPoint = BinaryRoutePlanner
+							.squareRootDist(x, y, targetEndX, targetEndY);
+
+					found = checkFoundRoute(segment.getRoad().id, segmentEnd,
+							end);
+					if (found) {
+						end.parentRoute = segment;
+						end.parentSegmentEnd = segmentEnd;
+						end.distanceFromStart = distStartObstacles;
+						end.distanceToEnd = 0;
+						return result;
+					}
+
+					long l = (((long) x) << 31) + (long) y;
+					RouteSegment next = tile.getSegment(l, ctx);
+
+					if (next != null) {
+						if ((next == segment || next.road.id == road.id)
+								&& next.next == null) {
+							continue;
+						}
+						log.debug("check intersection");
+
+						found = processIntersections(ctx, router,
+								graphSegments, visitedSegments,
+								distStartObstacles, distToFinalPoint, segment,
+								segmentEnd, next, end, dataSourceObjects,
+								result);
+						if (found) {
+							return result;
+						}
+					}
+				}
+			}
+
+			throw new Exception("route not found");
+		}
+
+		private void checkDataSourceObject(long id, int segmentStart,
+				TLongObjectHashMap<DataSourceObject> dataSourceObjects,
+				PriorityQueue<DataSourceObject> toFill) {
+			long nt = (id << BinaryRoutePlanner.ROUTE_POINTS) + segmentStart;
+			if (dataSourceObjects.contains(nt)) {
+				DataSourceObject o = dataSourceObjects.get(nt);
+				if (o != null) {
+					toFill.add(o);
+				}
+			}
+
+		}
+
+		private void prepareDataSourceObject(
+				ArrayList<DataSourceObject> dataSourceObjectList,
+				TLongObjectHashMap<DataSourceObject> toFill,
+				BinaryRoutePlanner router, RoutingContext ctx) {
+			for (DataSourceObject o : dataSourceObjectList) {
+				try {
+					RouteSegment s = router.findRouteSegment(o.getLat(),
+							o.getLon(), ctx);
+					if (s != null) {
+						RouteDataObject road = s.getRoad();
+						long nt = (road.getId() << BinaryRoutePlanner.ROUTE_POINTS)
+								+ s.getSegmentStart();
+						toFill.put(nt, o);
+					}
+				} catch (IOException e) {
+					log.debug("route segment not found");
+				}
+			}
+		}
+
+		private boolean checkFoundRoute(long id, int segmentEnd,
+				RouteSegment end) {
+			if (end == null) {
+				return false;
+			}
+			if (end.getRoad().id == id && segmentEnd == end.segmentStart) {
+				return true;
+			}
+			return false;
+		}
+
+		private boolean processIntersections(RoutingContext ctx,
+				BinaryRoutePlanner router,
+				PriorityQueue<RouteSegment> graphSegments,
+				TLongObjectHashMap<RouteSegment> visitedSegments,
+				double distFromStart, double distToFinalPoint,
+				RouteSegment segment, int segmentEnd, RouteSegment inputNext,
+				RouteSegment end,
+				TLongObjectHashMap<DataSourceObject> dataSourceObjects,
+				PriorityQueue<DataSourceObject> result) {
+			boolean thereAreRestrictions = router.proccessRestrictions(ctx,
+					segment.road, inputNext, false);
+			Iterator<RouteSegment> nextIterator = null;
+			if (thereAreRestrictions) {
+				nextIterator = ctx.segmentsToVisitPrescripted.iterator();
+			}
+			RouteSegment next = inputNext;
+			boolean hasNext = nextIterator == null || nextIterator.hasNext();
+			while (hasNext) {
+				if (nextIterator != null) {
+					next = nextIterator.next();
+				}
+				long nts = (next.road.getId() << BinaryRoutePlanner.ROUTE_POINTS)
+						+ next.segmentStart;
+				boolean alreadyVisited = visitedSegments.contains(nts);
+				if (!alreadyVisited) {
+					double distanceToEnd = BinaryRoutePlanner.h(ctx,
+							distToFinalPoint, next);
+					if (next.parentRoute == null
+							|| ctx.roadPriorityComparator(
+									next.distanceFromStart, next.distanceToEnd,
+									distFromStart, distanceToEnd) > 0) {
+						next.distanceFromStart = distFromStart;
+						next.distanceToEnd = distanceToEnd;
+						if (next.parentRoute != null) {
+							graphSegments.remove(next);
+						}
+						if (next.parentRoute == null) {
+							checkDataSourceObject(next.getRoad().getId(),
+									next.getSegmentStart(), dataSourceObjects,
+									result);
+							boolean found = checkFoundRoute(next.getRoad()
+									.getId(), next.getSegmentStart(), end);
+							if (found) {
+								return true;
+							}
+						}
+						next.parentRoute = segment;
+						next.parentSegmentEnd = segmentEnd;
+						graphSegments.add(next);
+					}
+				} else {
+					// TODO: check
+					if (distFromStart < next.distanceFromStart
+							&& next.road.id != segment.road.id) {
+						next.distanceFromStart = distFromStart;
+						next.parentRoute = segment;
+						next.parentSegmentEnd = segmentEnd;
+					}
+				}
+
+				if (nextIterator == null) {
+					next = next.next;
+					hasNext = next != null;
+				} else {
+					hasNext = nextIterator.hasNext();
+				}
+			}
+			return false;
+		}
+
+		public void stopCalculation() {
+
+		}
+
 	}
 
 }

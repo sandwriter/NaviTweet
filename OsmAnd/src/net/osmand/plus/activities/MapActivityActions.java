@@ -487,16 +487,16 @@ public class MapActivityActions implements DialogProvider {
 				if (changed) {
 					mapActivity.updateApplicationModeSettings();
 					mapActivity.getMapView().refreshMap(true);
-				}
-
+				}				
+				mapActivity.getRoadSpeakHelper().EnableRoadSpeakMessage(mapActivity.getPointToNavigate(), current);
+				
 				routingHelper.setAppMode(mode);
 				settings.FOLLOW_THE_ROUTE.set(true);
 				settings.FOLLOW_THE_GPX_ROUTE.set(null);
 				routingHelper.setFollowingMode(true);
-				routingHelper.setFinalAndCurrentLocation(mapActivity.getPointToNavigate(), current);
-				dialog.dismiss();
+				routingHelper.setFinalAndCurrentLocation(mapActivity.getPointToNavigate(), current);				
+				dialog.dismiss();				
 				getMyApplication().showDialogInitializingCommandPlayer(mapActivity);
-				mapActivity.getRoadSpeakHelper().EnableRoadSpeakMessage();
 			}
 		};
 

@@ -243,7 +243,7 @@ public class BinaryMapIndexReader {
 		return mapIndexes;
 	}
 	
-	public List<RouteRegion> getRoutingIndexes() {
+	public synchronized List<RouteRegion> getRoutingIndexes() {
 		return routingIndexes;
 	}
 	

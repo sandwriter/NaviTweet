@@ -41,34 +41,34 @@ public class RoutingContext {
 	
 
 	// 2. Routing memory cache (big objects)
-	TIntObjectHashMap<RoutingTile> tiles = new TIntObjectHashMap<RoutingContext.RoutingTile>();
+	public TIntObjectHashMap<RoutingTile> tiles = new TIntObjectHashMap<RoutingContext.RoutingTile>();
 
 	
 	// 3. Warm object caches
-	TLongSet nonRestrictedIds = new TLongHashSet();
-	ArrayList<RouteSegment> segmentsToVisitPrescripted = new ArrayList<BinaryRoutePlanner.RouteSegment>(5);
-	ArrayList<RouteSegment> segmentsToVisitNotForbidden = new ArrayList<BinaryRoutePlanner.RouteSegment>(5);
+	public TLongSet nonRestrictedIds = new TLongHashSet();
+	public ArrayList<RouteSegment> segmentsToVisitPrescripted = new ArrayList<BinaryRoutePlanner.RouteSegment>(5);
+	public ArrayList<RouteSegment> segmentsToVisitNotForbidden = new ArrayList<BinaryRoutePlanner.RouteSegment>(5);
 	
 	// 4. Final results
-	RouteSegment finalDirectRoute = null;
-	int finalDirectEndSegment = 0;
-	RouteSegment finalReverseRoute = null;
-	int finalReverseEndSegment = 0;
+	public RouteSegment finalDirectRoute = null;
+	public int finalDirectEndSegment = 0;
+	public RouteSegment finalReverseRoute = null;
+	public int finalReverseEndSegment = 0;
 
 
 	// 5. debug information (package accessor)
-	long timeToLoad = 0;
-	long timeToCalculate = 0;
+	public long timeToLoad = 0;
+	public long timeToCalculate = 0;
 	public int loadedTiles = 0;
-	int distinctLoadedTiles = 0;
-	int maxLoadedTiles = 0;
-	int loadedPrevUnloadedTiles = 0;
-	int unloadedTiles = 0;
-	TIntHashSet distinctUnloadedTiles = new TIntHashSet();
+	public int distinctLoadedTiles = 0;
+	public int maxLoadedTiles = 0;
+	public int loadedPrevUnloadedTiles = 0;
+	public int unloadedTiles = 0;
+	public TIntHashSet distinctUnloadedTiles = new TIntHashSet();
 	public int visitedSegments = 0;
 	public int relaxedSegments = 0;
 	// callback of processing segments
-	RouteSegmentVisitor visitor = null;
+	public RouteSegmentVisitor visitor = null;
 	
 	public RoutingContext(RoutingConfiguration config) {
 		this.config = config;
@@ -245,7 +245,8 @@ public class RoutingContext {
 				try {
 					r.getKey().searchRouteIndex(request, r.getValue());
 				} catch (IOException e) {
-					throw new RuntimeException("Loading data exception", e);
+					e.printStackTrace();
+//					throw new RuntimeException("Loading data exception", e);
 				}
 			}
 		}
