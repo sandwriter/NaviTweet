@@ -197,7 +197,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					map.getRoadSpeakHelper().finalLocation,
 					map.getRoadSpeakHelper().currentLocation, map
 							.getRoadSpeakHelper().cloneDataSourceObjectList());
-			synchronized(app){
+			synchronized (app) {
 				messageRouteHelper.route();
 			}
 			log.debug("exit the message router");
@@ -557,14 +557,12 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			if (mode != ApplicationMode.CAR) {
 				return result;
 			}
-			log.debug("start routeQuery");
 			BinaryMapIndexReader[] files = app.getResourceManager()
 					.getRoutingMapFiles();
 			BinaryRoutePlanner router = new BinaryRoutePlanner(
 					NativeOsmandLibrary.getLoadedLibrary(), files);
 			File routingXml = app.getSettings().extendOsmandPath(
 					ResourceManager.ROUTING_XML);
-			log.debug("after init res");
 			RoutingConfiguration.Builder config;
 			if (routingXml.exists() && routingXml.canRead()) {
 				try {
@@ -592,10 +590,9 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			if (start == null) {
 				throw new Exception("start is null");
 			}
-			log.debug("found start segment");
+			logRouteSegment("start", start);
 			checkDataSourceObject(start.getRoad().id, start.getSegmentStart(),
 					dataSourceObjects, result);
-
 			RouteSegment end = router.findRouteSegment(
 					finalLocation.getLatitude(), finalLocation.getLongitude(),
 					ctx);
@@ -607,7 +604,6 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			if (found) {
 				return result;
 			}
-			log.debug("start routing");
 
 			ctx.timeToLoad = 0;
 			ctx.visitedSegments = 0;
@@ -647,10 +643,10 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					targetEndY, startX, startY);
 			start.distanceToEnd = estimatedDistance;
 
-			log.debug("start A*");
 			graphSegments.add(start);
 			while (!graphSegments.isEmpty()) {
 				RouteSegment segment = graphSegments.poll();
+				logRouteSegment("poll", segment);
 				ctx.visitedSegments++;
 				final RouteDataObject road = segment.road;
 				final int middle = segment.segmentStart;
@@ -754,6 +750,9 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 							+ distOnRoadToPass / speed;
 					double distToFinalPoint = BinaryRoutePlanner
 							.squareRootDist(x, y, targetEndX, targetEndY);
+					logRouteSegment("extend", new RouteSegment(segment.getRoad(), segmentEnd));
+					checkDataSourceObject(segment.getRoad().id, segmentEnd,
+							dataSourceObjects, result);
 
 					found = checkFoundRoute(segment.getRoad().id, segmentEnd,
 							end);
@@ -773,7 +772,6 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 								&& next.next == null) {
 							continue;
 						}
-						log.debug("check intersection");
 
 						found = processIntersections(ctx, router,
 								graphSegments, visitedSegments,
@@ -790,17 +788,22 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			throw new Exception("route not found");
 		}
 
-		private void checkDataSourceObject(long id, int segmentStart,
+		private void logRouteSegment(String prefix, RouteSegment segment) {
+			log.debug(String.format("prefix: %s, road name: %s, road id: %d, index: %d", prefix, (segment.getRoad().getName() == null? "":segment.getRoad().getName()), segment.getRoad().getId(), segment.getSegmentStart()));			
+		}
+
+		private boolean checkDataSourceObject(long id, int segmentStart,
 				TLongObjectHashMap<DataSourceObject> dataSourceObjects,
 				PriorityQueue<DataSourceObject> toFill) {
 			long nt = (id << BinaryRoutePlanner.ROUTE_POINTS) + segmentStart;
 			if (dataSourceObjects.contains(nt)) {
 				DataSourceObject o = dataSourceObjects.get(nt);
-				if (o != null) {
+				if (o != null && !toFill.contains(o)) {					
 					toFill.add(o);
+					return true;
 				}
 			}
-
+			return false;
 		}
 
 		private void prepareDataSourceObject(
@@ -829,6 +832,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				return false;
 			}
 			if (end.getRoad().id == id && segmentEnd == end.segmentStart) {
+				log.debug("route found");
 				return true;
 			}
 			return false;
@@ -870,7 +874,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 						if (next.parentRoute != null) {
 							graphSegments.remove(next);
 						}
-						if (next.parentRoute == null) {
+						if (next.parentRoute == null) {							
 							checkDataSourceObject(next.getRoad().getId(),
 									next.getSegmentStart(), dataSourceObjects,
 									result);
@@ -883,6 +887,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 						next.parentRoute = segment;
 						next.parentSegmentEnd = segmentEnd;
 						graphSegments.add(next);
+						logRouteSegment("intersection", next);
 					}
 				} else {
 					// TODO: check
