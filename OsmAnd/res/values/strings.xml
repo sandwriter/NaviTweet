@@ -1157,4 +1157,13 @@ You can enable (online or cached) tile map sources, tracking settings, and many 
 <string name="roadspeak_message_id_key">messageid</string>
 <string name="roadspeak_update_interval">RoadSpeak update interval</string>
 <string name="roadspeak_update_interval_description">Specify RoadSpeak update interval</string>
+<string name="roadspeak_digest_number">RoadSpeak digest length</string>
+<string name="roadspeak_digest_number_description">specify RoadSpeak digest length by number of messages</string>
+<string name="roadspeak_one_message">1</string>
+<string name="roadspeak_two_message">2</string>
+<string name="roadspeak_three_message">3</string>
+<string name="roadspeak_four_message">4</string>
+<string name="roadspeak_all_message">all</string>
+<string name="roadspeak_digest_message_download_url">Message download url</string>
+<string name="roadspeak_digest_message_download_url_description">Specify the web address for downloading message</string>
 </resources>

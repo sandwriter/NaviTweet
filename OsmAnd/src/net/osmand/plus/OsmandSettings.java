@@ -23,6 +23,7 @@ import net.osmand.osm.LatLon;
 import net.osmand.plus.activities.ApplicationMode;
 import net.osmand.plus.activities.search.SearchHistoryHelper;
 import net.osmand.plus.render.RendererRegistry;
+import net.osmand.plus.roadspeak.RoadSpeakPlugin.Digest;
 import net.osmand.plus.routing.RouteProvider.RouteService;
 import net.osmand.render.RenderingRulesStorage;
 import android.content.Context;
@@ -550,9 +551,13 @@ public class OsmandSettings {
 	
 	public final OsmandPreference<String> ROADSPEAK_DOWNLOAD_URL = new StringPreference("roadspeak_download_url", "http://qbert.rutgers.edu:8080/download.php").makeGlobal();
 	
+	public final OsmandPreference<String> ROADSPEAK_DOWNLOAD_MESSAGE_URL = new StringPreference("roadspeak_download_message_url", "http://ec2-50-17-35-116.compute-1.amazonaws.com/message").makeGlobal();
+	
 	public final CommonPreference<Integer> ROADSPEAK_DIGEST_INTERVAL = new IntPreference("roadspeak_digest_interval", 900).makeGlobal();
 	
 	public final CommonPreference<Integer> ROADSPEAK_UPDATE_INTERVAL = new IntPreference("roadspeak_update_interval", 10).makeGlobal();
+	
+	public final CommonPreference<Integer> ROADSPEAK_DIGEST_NUMBER = new IntPreference("roadspeak_digest_number", Digest.FOUR_MESSAGE).makeGlobal();
 		
 	// this value boolean is synchronized with settings_pref.xml preference offline POI/Bugs edition
 	public final OsmandPreference<Boolean> OFFLINE_EDITION = new BooleanPreference("offline_edition", false).makeGlobal();

@@ -488,7 +488,7 @@ public class MapActivityActions implements DialogProvider {
 					mapActivity.updateApplicationModeSettings();
 					mapActivity.getMapView().refreshMap(true);
 				}				
-				mapActivity.getRoadSpeakHelper().EnableRoadSpeakMessage(mapActivity.getPointToNavigate(), current);
+				mapActivity.getRoadSpeakHelper().EnableRoadSpeakMessage(mapActivity.getPointToNavigate(), from);
 				
 				routingHelper.setAppMode(mode);
 				settings.FOLLOW_THE_ROUTE.set(true);

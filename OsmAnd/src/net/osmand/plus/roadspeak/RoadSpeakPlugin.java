@@ -2,12 +2,21 @@ package net.osmand.plus.roadspeak;
 
 import gnu.trove.map.hash.TLongObjectHashMap;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.PriorityQueue;
@@ -30,6 +39,7 @@ import net.osmand.plus.ResourceManager;
 import net.osmand.plus.activities.ApplicationMode;
 import net.osmand.plus.activities.MapActivity;
 import net.osmand.plus.activities.RoadSpeakHelper.DataSourceObject;
+import net.osmand.plus.activities.RoadSpeakHelper.MessageObject;
 import net.osmand.plus.activities.SettingsActivity;
 import net.osmand.plus.render.NativeOsmandLibrary;
 import net.osmand.plus.routing.RoutingHelper;
@@ -53,6 +63,8 @@ import android.content.DialogInterface;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.media.MediaPlayer;
+import android.os.Environment;
 import android.os.Handler;
 import android.preference.EditTextPreference;
 import android.preference.PreferenceCategory;
@@ -88,6 +100,8 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			ROADSPEAK_FETCH_MESSAGE_TIMER_ID);
 	private final String ROADSPEAK_UPDATE_LOCATION_TIMER_ID = "roadspeak_update_location";
 	private SimpleTimer updateLocationTimer = null;
+	private MediaPlayer mPlayer = null;
+	private String digestDirPath = null;
 
 	private MapActivity map;
 	private RoutingHelper routingHelper;
@@ -115,7 +129,22 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	@Override
 	public boolean init(OsmandApplication app) {
 		this.settings = app.getSettings();
+		prepareTmpStorage();
 		return true;
+	}
+
+	private void prepareTmpStorage() {
+		this.digestDirPath = Environment.getExternalStorageDirectory()
+				.getAbsolutePath() + "/digest";
+		File digestDir = new File(digestDirPath);
+		if (digestDir.exists()) {
+			File[] files = digestDir.listFiles();
+			for (File f : files) {
+				f.delete();
+			}
+		} else {
+			digestDir.mkdir();
+		}
 	}
 
 	@Override
@@ -366,6 +395,10 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				settings.ROADSPEAK_DOWNLOAD_URL,
 				R.string.roadspeak_download_url,
 				R.string.roadspeak_download_url_description));
+		cat.addPreference(activity.createEditTextPreference(
+				settings.ROADSPEAK_DOWNLOAD_MESSAGE_URL,
+				R.string.roadspeak_digest_message_download_url,
+				R.string.roadspeak_digest_message_download_url_description));
 		cat.addPreference(activity.createTimeListPreference(
 				settings.ROADSPEAK_DIGEST_INTERVAL, new int[] {}, new int[] {
 						5, 10, 15, 30, 60, 120 }, 1,
@@ -375,6 +408,17 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				settings.ROADSPEAK_UPDATE_INTERVAL, new int[] { 5, 10, 30 },
 				new int[] { 1, 5, 10 }, 1, R.string.roadspeak_update_interval,
 				R.string.roadspeak_update_interval_description));
+		cat.addPreference(activity.createListPreference(
+				settings.ROADSPEAK_DIGEST_NUMBER,
+				new String[] { app.getString(R.string.roadspeak_one_message),
+						app.getString(R.string.roadspeak_two_message),
+						app.getString(R.string.roadspeak_three_message),
+						app.getString(R.string.roadspeak_four_message),
+						app.getString(R.string.roadspeak_all_message) },
+				new Integer[] { Digest.ONE_MESSAGE, Digest.TWO_MESSAGE,
+						Digest.THREE_MESSAGE, Digest.FOUR_MESSAGE,
+						Digest.ALL_MESSAGE }, R.string.roadspeak_digest_number,
+				R.string.roadspeak_digest_number_description));
 	}
 
 	@Override
@@ -396,7 +440,6 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				public void onStart() {
 
 				}
-
 			};
 			updateLocationTimer.reset(0,
 					settings.ROADSPEAK_UPDATE_INTERVAL.get(), false);
@@ -526,8 +569,8 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 									"number of objects: " + target.size(),
 									Toast.LENGTH_SHORT).show();
 						}
-
 					});
+					downloadAndPlayDigest(target);
 					log.debug("message posted");
 				}
 			} catch (FileNotFoundException e) {
@@ -590,7 +633,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			if (start == null) {
 				throw new Exception("start is null");
 			}
-			logRouteSegment("start", start);
+//			logRouteSegment("start", start);
 			checkDataSourceObject(start.getRoad().id, start.getSegmentStart(),
 					dataSourceObjects, result);
 			RouteSegment end = router.findRouteSegment(
@@ -646,7 +689,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			graphSegments.add(start);
 			while (!graphSegments.isEmpty()) {
 				RouteSegment segment = graphSegments.poll();
-				logRouteSegment("poll", segment);
+//				logRouteSegment("poll", segment);
 				ctx.visitedSegments++;
 				final RouteDataObject road = segment.road;
 				final int middle = segment.segmentStart;
@@ -750,7 +793,8 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 							+ distOnRoadToPass / speed;
 					double distToFinalPoint = BinaryRoutePlanner
 							.squareRootDist(x, y, targetEndX, targetEndY);
-					logRouteSegment("extend", new RouteSegment(segment.getRoad(), segmentEnd));
+//					logRouteSegment("extend",
+//							new RouteSegment(segment.getRoad(), segmentEnd));
 					checkDataSourceObject(segment.getRoad().id, segmentEnd,
 							dataSourceObjects, result);
 
@@ -789,7 +833,11 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		}
 
 		private void logRouteSegment(String prefix, RouteSegment segment) {
-			log.debug(String.format("prefix: %s, road name: %s, road id: %d, index: %d", prefix, (segment.getRoad().getName() == null? "":segment.getRoad().getName()), segment.getRoad().getId(), segment.getSegmentStart()));			
+			log.debug(String.format(
+					"prefix: %s, road name: %s, road id: %d, index: %d",
+					prefix, (segment.getRoad().getName() == null ? "" : segment
+							.getRoad().getName()), segment.getRoad().getId(),
+					segment.getSegmentStart()));
 		}
 
 		private boolean checkDataSourceObject(long id, int segmentStart,
@@ -798,7 +846,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			long nt = (id << BinaryRoutePlanner.ROUTE_POINTS) + segmentStart;
 			if (dataSourceObjects.contains(nt)) {
 				DataSourceObject o = dataSourceObjects.get(nt);
-				if (o != null && !toFill.contains(o)) {					
+				if (o != null && !toFill.contains(o)) {
 					toFill.add(o);
 					return true;
 				}
@@ -874,7 +922,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 						if (next.parentRoute != null) {
 							graphSegments.remove(next);
 						}
-						if (next.parentRoute == null) {							
+						if (next.parentRoute == null) {
 							checkDataSourceObject(next.getRoad().getId(),
 									next.getSegmentStart(), dataSourceObjects,
 									result);
@@ -887,7 +935,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 						next.parentRoute = segment;
 						next.parentSegmentEnd = segmentEnd;
 						graphSegments.add(next);
-						logRouteSegment("intersection", next);
+//						logRouteSegment("intersection", next);
 					}
 				} else {
 					// TODO: check
@@ -913,6 +961,143 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 
 		}
 
+	}
+
+	public void downloadAndPlayDigest(PriorityQueue<DataSourceObject> target) {
+		log.debug("download and play digest");
+		ArrayList<DataSourceObject> ds = new ArrayList<DataSourceObject>();
+		if (settings.ROADSPEAK_DIGEST_NUMBER.get() <= 4) {
+			DataSourceObject o;
+			for (int i = 0; i < settings.ROADSPEAK_DIGEST_NUMBER.get()
+					&& !target.isEmpty(); i++) {
+				o = target.poll();
+				ds.add(o);
+			}
+		} else {
+			DataSourceObject o;
+			while (!target.isEmpty()) {
+				o = target.poll();
+				ds.add(o);
+			}
+		}
+		downloadDigests(ds);
+		playDigest(ds);
+	}
+
+	private void playDigest(final ArrayList<DataSourceObject> toPlay) {
+		Thread thread = new Thread(new Runnable(){			
+			@Override
+			public void run() {
+				for(int i = 0; i < toPlay.size(); i++){
+					DataSourceObject o = toPlay.get(i);
+					if(o instanceof MessageObject){
+						MessageObject message = (MessageObject)o;
+						synchronized(message){
+							while(message.getFile() == null){
+								try {
+									message.wait(5000);
+								} catch (InterruptedException e) {
+									e.printStackTrace();
+								}
+							}
+							if(message.getFile().equals(Digest.UNAVAILABLE)){
+								continue;
+							}
+							if(mPlayer == null){
+								mPlayer = new MediaPlayer();
+							}else{
+								mPlayer.reset();
+							}			
+							try {
+								mPlayer.setDataSource(message.getFile());
+								mPlayer.prepare();
+								mPlayer.start();
+								while(mPlayer.isPlaying());
+								mPlayer.stop();
+								mPlayer.release();
+								mPlayer = null;
+								Thread.sleep(1000);
+							} catch (IllegalArgumentException e) {
+								e.printStackTrace();
+							} catch (IllegalStateException e) {
+								e.printStackTrace();
+							} catch (IOException e) {
+								e.printStackTrace();
+							} catch (InterruptedException e) {
+								e.printStackTrace();
+							}							
+						}	
+					}
+				}				
+			}			
+		});
+		thread.run();
+	}
+
+	private void downloadDigests(final ArrayList<DataSourceObject> toDownload) {
+		Thread thread;
+		String messageUrl = settings.ROADSPEAK_DOWNLOAD_MESSAGE_URL.get();
+		for (int i = 0; i < toDownload.size(); i++) {
+			DataSourceObject o = toDownload.get(i);
+			if (o instanceof MessageObject) {
+				final MessageObject message = (MessageObject) o;
+				Date date = new Date(message.getTime());
+				SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+				String dir = df.format(date);
+				final String path = messageUrl + "/" + dir + "/"
+						+ message.getMessageId();
+				final String output = RoadSpeakPlugin.this.digestDirPath + "/"
+						+ message.getMessageId();
+				thread = new Thread(new Runnable() {
+					@Override
+					public void run() {
+						synchronized (message) {
+							boolean downloaded = downloadDigest(path, output);
+							if(downloaded){
+								message.setFile(output);
+							}else{
+								message.setFile(Digest.UNAVAILABLE);
+							}		
+							message.notifyAll();
+						}
+					}
+				});
+				thread.run();
+			}
+		}
+	}
+
+	public boolean downloadDigest(String path, String file) {
+		try {
+			URL url = new URL(path);
+			URLConnection connection = url.openConnection();
+			connection.connect();
+			InputStream input = new BufferedInputStream(url.openStream());
+			OutputStream output = new FileOutputStream(file);
+			byte data[] = new byte[1024];
+			int count;
+			while ((count = input.read(data)) != -1) {
+				output.write(data, 0, count);
+			}
+			output.flush();
+			output.close();
+			input.close();
+			return true;
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
+
+	public static class Digest {
+		public static final int ONE_MESSAGE = 1;
+		public static final int TWO_MESSAGE = 2;
+		public static final int THREE_MESSAGE = 3;
+		public static final int FOUR_MESSAGE = 4;
+		public static final int ALL_MESSAGE = 5;
+		public static final String UNAVAILABLE = "unavailable";
 	}
 
 }

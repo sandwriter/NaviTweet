@@ -545,6 +545,7 @@ public class RoadSpeakHelper {
 		private int messageId;
 		private int userId;
 		private String username;
+		private String file;
 
 		public MessageObject(float lat, float lon, float alt, float speed,
 				float bearing, float accuracy, long time, int messageId,
@@ -553,6 +554,7 @@ public class RoadSpeakHelper {
 			this.messageId = messageId;
 			this.userId = userId;
 			this.username = username;
+			this.file = null;
 		}
 
 		public int getMessageId() {
@@ -565,6 +567,14 @@ public class RoadSpeakHelper {
 
 		public String getUsername() {
 			return username;
+		}
+
+		public String getFile() {
+			return file;
+		}
+
+		public void setFile(String file) {
+			this.file = file;
 		}
 	}
 

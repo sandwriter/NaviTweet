@@ -114,7 +114,8 @@ public class LiveMonitoringHelper  {
 					is.close();
 				}
 				httpclient.getConnectionManager().shutdown();
-				log.info("Montior response : " + responseBody.toString());
+				// too much log
+//				log.info("Montior response : " + responseBody.toString());
 			}
 
 			
