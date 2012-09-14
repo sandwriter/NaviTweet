@@ -488,7 +488,7 @@ public class MapActivityActions implements DialogProvider {
 					mapActivity.updateApplicationModeSettings();
 					mapActivity.getMapView().refreshMap(true);
 				}				
-				mapActivity.getRoadSpeakHelper().EnableRoadSpeakMessage(mapActivity.getPointToNavigate(), from);
+				mapActivity.getRoadSpeakHelper().enableRoadSpeakMessage(mapActivity.getPointToNavigate(), from);
 				
 				routingHelper.setAppMode(mode);
 				settings.FOLLOW_THE_ROUTE.set(true);
@@ -954,6 +954,7 @@ public class MapActivityActions implements DialogProvider {
 				if (mapActivity.getMapLayers().getNavigationLayer().getPointToNavigate() != null) {
 					if (routingHelper.isRouteCalculated() || routingHelper.isFollowingMode() || routingHelper.isRouteBeingCalculated()) {
 						routingHelper.setFinalAndCurrentLocation(null, routingHelper.getCurrentLocation(), routingHelper.getCurrentGPXRoute());
+						mapActivity.getRoadSpeakHelper().disableRoadSpeakMessage();
 						// restore default mode
 						boolean changed = settings.APPLICATION_MODE.set(settings.PREV_APPLICATION_MODE.get());
 						mapActivity.updateApplicationModeSettings();

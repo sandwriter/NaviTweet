@@ -168,8 +168,8 @@ public class RoadSpeakHelper {
 
 	}
 
-	public void sendMessage(double lat, double lon, double alt, double speed, double bearing,
-			double hdop, long time) {
+	public void sendMessage(double lat, double lon, double alt, double speed,
+			double bearing, double hdop, long time) {
 		if (recorder != null) {
 			recorder.stop();
 			recorder.release();
@@ -241,7 +241,8 @@ public class RoadSpeakHelper {
 							new StringBody(Float.toString(message.alt)));
 					entity.addPart(ctx.getString(R.string.speed_key),
 							new StringBody(Float.toString(message.speed)));
-					entity.addPart(ctx.getString(R.string.roadspeak_bearing_key),
+					entity.addPart(
+							ctx.getString(R.string.roadspeak_bearing_key),
 							new StringBody(Float.toString(message.bearing)));
 					entity.addPart(ctx.getString(R.string.hdop_key),
 							new StringBody(Float.toString(message.hdop)));
@@ -304,12 +305,19 @@ public class RoadSpeakHelper {
 		}
 	}
 
-	public void EnableRoadSpeakMessage(LatLon finalLocation, Location currentLocation) {
+	public void enableRoadSpeakMessage(LatLon finalLocation,
+			Location currentLocation) {
 		this.finalLocation = finalLocation;
 		this.currentLocation = currentLocation;
 		if (roadspeakPlugin != null) {
 			roadspeakPlugin.resetRoadSpeakFetchMessageTimer();
 			roadspeakPlugin.startRoadSpeakFetchMessageTimer();
+		}
+	}
+
+	public void disableRoadSpeakMessage() {
+		if (roadspeakPlugin != null) {
+			roadspeakPlugin.pauseRoadSpeakFetchMessageTimer();
 		}
 	}
 
@@ -350,24 +358,25 @@ public class RoadSpeakHelper {
 		LatLon finalLoc = message.finalLoc;
 		float accuracyForGpxAndRouting = message.accuracyForGpxAndRouting;
 
-		//TODO: why use float?
+		// TODO: why use float?
 		if (loc != null) {
 			if (!loc.hasAccuracy()
 					|| loc.getAccuracy() < accuracyForGpxAndRouting) {
-				String url = MessageFormat
-						.format(settings.ROADSPEAK_UPDATE_ENVIRONMENT_URL.get(),
-								settings.ROADSPEAK_USER_NAME.get(),
-								settings.ROADSPEAK_USER_PASSWORD.get(),
-								Float.toString((float)loc.getLatitude()),
-								Float.toString((float) loc.getLongitude()),
-								Float.toString((float) loc.getAltitude()),
-								Float.toString((float) loc.getSpeed()),
-								Float.toString((float) loc.getBearing()),
-								Float.toString((float) loc.getAccuracy()),
-								Long.toString(loc.getTime()),
-								(finalLoc == null ? "" : Float.toString((float) finalLoc
-										.getLatitude())), (finalLoc == null ? ""
-										: Float.toString((float) finalLoc.getLongitude())));
+				String url = MessageFormat.format(
+						settings.ROADSPEAK_UPDATE_ENVIRONMENT_URL.get(),
+						settings.ROADSPEAK_USER_NAME.get(),
+						settings.ROADSPEAK_USER_PASSWORD.get(),
+						Float.toString((float) loc.getLatitude()),
+						Float.toString((float) loc.getLongitude()),
+						Float.toString((float) loc.getAltitude()),
+						Float.toString((float) loc.getSpeed()),
+						Float.toString((float) loc.getBearing()),
+						Float.toString((float) loc.getAccuracy()),
+						Long.toString(loc.getTime()),
+						(finalLoc == null ? "" : Float
+								.toString((float) finalLoc.getLatitude())),
+						(finalLoc == null ? "" : Float
+								.toString((float) finalLoc.getLongitude())));
 				try {
 					HttpParams params = new BasicHttpParams();
 					HttpConnectionParams.setConnectionTimeout(params, 15000);
@@ -588,4 +597,5 @@ public class RoadSpeakHelper {
 			}
 		}
 	}
+
 }

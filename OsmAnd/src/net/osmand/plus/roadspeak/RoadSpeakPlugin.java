@@ -213,7 +213,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		return roadspeakFetchMessageTimer.getSeconds();
 	}
 
-	private void fetchAndPlayMessage() {
+	public void fetchAndPlayMessage() {
 		if (routingHelper == null) {
 			log.error("Routing Helper is null");
 		}
@@ -239,15 +239,18 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	}
 
 	public void startRoadSpeakFetchMessageTimer() {
+		Thread thread = new Thread(new Runnable(){
+			@Override
+			public void run() {
+				fetchAndPlayMessage();				
+			}			
+		});
+		thread.start();
 		roadspeakFetchMessageTimer.start();
 	}
 
 	public void pauseRoadSpeakFetchMessageTimer() {
 		roadspeakFetchMessageTimer.pause();
-	}
-
-	public void onCountDownStart(String id) {
-		fetchAndPlayMessage();
 	}
 
 	public void onCountDownFinished(String id) {
@@ -436,10 +439,6 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 							MapActivity.ACCURACY_FOR_GPX_AND_ROUTING);
 				}
 
-				@Override
-				public void onStart() {
-
-				}
 			};
 			updateLocationTimer.reset(0,
 					settings.ROADSPEAK_UPDATE_INTERVAL.get(), false);
@@ -500,12 +499,6 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		}
 
 		public void start() {
-			new Thread(new Runnable() {
-				@Override
-				public void run() {
-					onStart();
-				}
-			}).start();
 			schedulerHandler = scheduler.scheduleAtFixedRate(new Runnable() {
 				@Override
 				public void run() {
@@ -521,10 +514,6 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				}
 
 			}, interval, interval, TimeUnit.SECONDS);
-		}
-
-		public void onStart() {
-			RoadSpeakPlugin.this.onCountDownStart(SimpleTimer.this.id);
 		}
 
 		public void pause() {
