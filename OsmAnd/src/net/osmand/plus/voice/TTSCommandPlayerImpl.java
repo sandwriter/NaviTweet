@@ -87,6 +87,19 @@ public class TTSCommandPlayerImpl extends AbstractPrologCommandPlayer {
 			mTts.speak(bld.toString(), TextToSpeech.QUEUE_ADD, params);
 		}
 	}
+	
+	public void speak(String speech){
+		if(mTts != null){
+			mTts.speak(speech, TextToSpeech.QUEUE_ADD, params);
+			while(mTts.isSpeaking()){
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
 
 	private void initializeEngine(final Context ctx, final Activity act)
 	{

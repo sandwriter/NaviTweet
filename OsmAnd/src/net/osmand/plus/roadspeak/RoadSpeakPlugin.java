@@ -47,6 +47,8 @@ import net.osmand.plus.views.MapInfoControl;
 import net.osmand.plus.views.MapInfoLayer;
 import net.osmand.plus.views.OsmandMapTileView;
 import net.osmand.plus.views.TextInfoControl;
+import net.osmand.plus.voice.CommandPlayer;
+import net.osmand.plus.voice.TTSCommandPlayerImpl;
 import net.osmand.router.BinaryRoutePlanner;
 import net.osmand.router.BinaryRoutePlanner.RouteSegment;
 import net.osmand.router.GeneralRouter.GeneralRouterProfile;
@@ -106,6 +108,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	private MapActivity map;
 	private RoutingHelper routingHelper;
 	private MessageRouteHelper messageRouteHelper;
+	private TTSCommandPlayerImpl ttsPlayer = null;
 
 	public RoadSpeakPlugin(OsmandApplication app) {
 		this.app = app;
@@ -239,11 +242,11 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	}
 
 	public void startRoadSpeakFetchMessageTimer() {
-		Thread thread = new Thread(new Runnable(){
+		Thread thread = new Thread(new Runnable() {
 			@Override
 			public void run() {
-				fetchAndPlayMessage();				
-			}			
+				fetchAndPlayMessage();
+			}
 		});
 		thread.start();
 		roadspeakFetchMessageTimer.start();
@@ -254,7 +257,6 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	}
 
 	public void onCountDownFinished(String id) {
-		fetchAndPlayMessage();
 		pauseRoadSpeakFetchMessageTimer();
 		resetRoadSpeakFetchMessageTimer();
 		startRoadSpeakFetchMessageTimer();
@@ -622,8 +624,8 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			if (start == null) {
 				throw new Exception("start is null");
 			}
-//			logRouteSegment("start", start);
-			checkDataSourceObject(start.getRoad().id, start.getSegmentStart(),
+			// logRouteSegment("start", start);
+			checkDataSourceObject(start.getRoad(), start.getSegmentStart(),
 					dataSourceObjects, result);
 			RouteSegment end = router.findRouteSegment(
 					finalLocation.getLatitude(), finalLocation.getLongitude(),
@@ -678,7 +680,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			graphSegments.add(start);
 			while (!graphSegments.isEmpty()) {
 				RouteSegment segment = graphSegments.poll();
-//				logRouteSegment("poll", segment);
+				// logRouteSegment("poll", segment);
 				ctx.visitedSegments++;
 				final RouteDataObject road = segment.road;
 				final int middle = segment.segmentStart;
@@ -782,9 +784,9 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 							+ distOnRoadToPass / speed;
 					double distToFinalPoint = BinaryRoutePlanner
 							.squareRootDist(x, y, targetEndX, targetEndY);
-//					logRouteSegment("extend",
-//							new RouteSegment(segment.getRoad(), segmentEnd));
-					checkDataSourceObject(segment.getRoad().id, segmentEnd,
+					// logRouteSegment("extend",
+					// new RouteSegment(segment.getRoad(), segmentEnd));
+					checkDataSourceObject(segment.getRoad(), segmentEnd,
 							dataSourceObjects, result);
 
 					found = checkFoundRoute(segment.getRoad().id, segmentEnd,
@@ -829,13 +831,16 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					segment.getSegmentStart()));
 		}
 
-		private boolean checkDataSourceObject(long id, int segmentStart,
+		private boolean checkDataSourceObject(RouteDataObject route,
+				int segmentStart,
 				TLongObjectHashMap<DataSourceObject> dataSourceObjects,
 				PriorityQueue<DataSourceObject> toFill) {
-			long nt = (id << BinaryRoutePlanner.ROUTE_POINTS) + segmentStart;
+			long nt = (route.id << BinaryRoutePlanner.ROUTE_POINTS)
+					+ segmentStart;
 			if (dataSourceObjects.contains(nt)) {
 				DataSourceObject o = dataSourceObjects.get(nt);
 				if (o != null && !toFill.contains(o)) {
+					o.attachSegment(new RouteSegment(route, segmentStart));
 					toFill.add(o);
 					return true;
 				}
@@ -912,7 +917,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 							graphSegments.remove(next);
 						}
 						if (next.parentRoute == null) {
-							checkDataSourceObject(next.getRoad().getId(),
+							checkDataSourceObject(next.getRoad(),
 									next.getSegmentStart(), dataSourceObjects,
 									result);
 							boolean found = checkFoundRoute(next.getRoad()
@@ -924,7 +929,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 						next.parentRoute = segment;
 						next.parentSegmentEnd = segmentEnd;
 						graphSegments.add(next);
-//						logRouteSegment("intersection", next);
+						// logRouteSegment("intersection", next);
 					}
 				} else {
 					// TODO: check
@@ -974,34 +979,67 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	}
 
 	private void playDigest(final ArrayList<DataSourceObject> toPlay) {
-		Thread thread = new Thread(new Runnable(){			
+		Thread thread = new Thread(new Runnable() {
 			@Override
 			public void run() {
-				for(int i = 0; i < toPlay.size(); i++){
+				CommandPlayer p = map.getRoutingHelper().getVoiceRouter().getPlayer();
+				if (p instanceof TTSCommandPlayerImpl) {
+					RoadSpeakPlugin.this.ttsPlayer = (TTSCommandPlayerImpl) p;
+				}				
+				for (int i = 0; i < toPlay.size(); i++) {
 					DataSourceObject o = toPlay.get(i);
-					if(o instanceof MessageObject){
-						MessageObject message = (MessageObject)o;
-						synchronized(message){
-							while(message.getFile() == null){
+					if (o instanceof MessageObject) {
+						MessageObject message = (MessageObject) o;
+						synchronized (message) {
+							while (message.getFile() == null) {
 								try {
 									message.wait(5000);
 								} catch (InterruptedException e) {
 									e.printStackTrace();
 								}
 							}
-							if(message.getFile().equals(Digest.UNAVAILABLE)){
+							if (message.getFile().equals(Digest.UNAVAILABLE)) {
 								continue;
 							}
-							if(mPlayer == null){
+							if (ttsPlayer == null) {
+								handler.post(new Runnable() {
+									@Override
+									public void run() {
+										Toast.makeText(
+												map,
+												"texttospeech synthesis is not available",
+												Toast.LENGTH_SHORT).show();
+									}
+								});
+							} else {
+								RouteSegment segment = message.getSegment();
+								if (segment == null) {
+									log.error("segment info missing");
+								} else {
+									String routeName = segment.getRoad()
+											.getName();
+									if (routeName == null
+											|| routeName.equals("")) {
+										log.debug("routename unavailable");
+										 ttsPlayer.speak(app.getString(R.string.routename_unavailable));
+									} else {
+										log.debug("routename spoken : " + routeName);
+										 ttsPlayer.speak(routeName);
+									}
+								}
+							}
+
+							if (mPlayer == null) {
 								mPlayer = new MediaPlayer();
-							}else{
+							} else {
 								mPlayer.reset();
-							}			
+							}
 							try {
 								mPlayer.setDataSource(message.getFile());
 								mPlayer.prepare();
 								mPlayer.start();
-								while(mPlayer.isPlaying());
+								while (mPlayer.isPlaying())
+									;
 								mPlayer.stop();
 								mPlayer.release();
 								mPlayer = null;
@@ -1014,11 +1052,11 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 								e.printStackTrace();
 							} catch (InterruptedException e) {
 								e.printStackTrace();
-							}							
-						}	
+							}
+						}
 					}
-				}				
-			}			
+				}
+			}
 		});
 		thread.run();
 	}
@@ -1042,11 +1080,11 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					public void run() {
 						synchronized (message) {
 							boolean downloaded = downloadDigest(path, output);
-							if(downloaded){
+							if (downloaded) {
 								message.setFile(output);
-							}else{
+							} else {
 								message.setFile(Digest.UNAVAILABLE);
-							}		
+							}
 							message.notifyAll();
 						}
 					}

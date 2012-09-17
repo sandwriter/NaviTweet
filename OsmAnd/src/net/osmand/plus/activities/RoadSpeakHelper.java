@@ -13,8 +13,8 @@ import net.osmand.osm.LatLon;
 import net.osmand.plus.OsmandApplication;
 import net.osmand.plus.OsmandSettings;
 import net.osmand.plus.R;
-import net.osmand.plus.activities.RoadSpeakHelper.DataSourceObject;
 import net.osmand.plus.roadspeak.RoadSpeakPlugin;
+import net.osmand.router.BinaryRoutePlanner.RouteSegment;
 
 import org.apache.commons.logging.Log;
 import org.apache.http.HttpResponse;
@@ -486,6 +486,7 @@ public class RoadSpeakHelper {
 		protected float bearing;
 		protected float accuracy;
 		protected long time;
+		protected RouteSegment segment;
 
 		public DataSourceObject(float lat, float lon, float alt, float speed,
 				float bearing, float accuracy, long time) {
@@ -496,6 +497,7 @@ public class RoadSpeakHelper {
 			this.bearing = bearing;
 			this.accuracy = accuracy;
 			this.time = time;
+			this.segment = null;
 		}
 
 		public float getLat() {
@@ -524,6 +526,14 @@ public class RoadSpeakHelper {
 
 		public long getTime() {
 			return time;
+		}
+
+		public RouteSegment getSegment() {
+			return segment;
+		}
+
+		public void attachSegment(RouteSegment segment) {
+			this.segment = segment;
 		}
 	}
 
