@@ -1167,4 +1167,5 @@ You can enable (online or cached) tile map sources, tracking settings, and many 
 <string name="roadspeak_digest_message_download_url">Message download url</string>
 <string name="roadspeak_digest_message_download_url_description">Specify the web address for downloading message</string>
 <string name="routename_unavailable">Route name unavailable</string>
+<string name="start_play_digest">Here is the traffic digest</string>
 </resources>

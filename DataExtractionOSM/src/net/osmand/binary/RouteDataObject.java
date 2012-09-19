@@ -41,6 +41,7 @@ public class RouteDataObject {
 		this.restrictions = copy.restrictions;
 		this.pointTypes = copy.pointTypes;
 		this.id = copy.id;
+		this.names = copy.names;
 	}
 
 	public long getId() {

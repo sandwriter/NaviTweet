@@ -420,7 +420,6 @@ public class RoadSpeakHelper {
 				}
 			}
 		}
-
 	}
 
 	private synchronized void updateEnvrionment(String responseBody) {

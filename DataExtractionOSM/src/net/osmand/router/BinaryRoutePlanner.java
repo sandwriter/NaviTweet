@@ -129,7 +129,7 @@ public class BinaryRoutePlanner {
 		int foundProjX = 0;
 		int foundProjY = 0;
 
-		for (RouteDataObject r : dataObjects) {
+		for (RouteDataObject r : dataObjects) {			
 			if (r.getPointsLength() > 1) {
 				for (int j = 1; j < r.getPointsLength(); j++) {
 					double mDist = squareRootDist(r.getPoint31XTile(j),
@@ -173,6 +173,7 @@ public class BinaryRoutePlanner {
 		}
 		return road;
 	}
+	
 
 	// TODO TO-DO U-TURN
 	// TODO fastest/shortest way

@@ -440,7 +440,6 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					map.getRoadSpeakHelper().updateEnvironment(loc, finalLoc,
 							MapActivity.ACCURACY_FOR_GPX_AND_ROUTING);
 				}
-
 			};
 			updateLocationTimer.reset(0,
 					settings.ROADSPEAK_UPDATE_INTERVAL.get(), false);
@@ -452,6 +451,12 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	public void mapActivityPause(MapActivity activity) {
 		super.mapActivityPause(activity);
 		updateLocationTimer.pause();
+	}
+
+	@Override
+	public void mapActivityDestroy(MapActivity activity) {
+		super.mapActivityDestroy(activity);
+		map.getRoadSpeakHelper().disableRoadSpeakMessage();
 	}
 
 	private class SimpleTimer {
@@ -556,8 +561,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					handler.post(new Runnable() {
 						@Override
 						public void run() {
-							Toast.makeText(map,
-									"number of objects: " + target.size(),
+							Toast.makeText(map, "Playing digest....",
 									Toast.LENGTH_SHORT).show();
 						}
 					});
@@ -978,14 +982,34 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		playDigest(ds);
 	}
 
+	public void logRoute(RouteDataObject route) {
+		String routeName = route.getName();
+		if (routeName == null) {
+			routeName = "";
+		}
+		String routeRef = route.getRef();
+		if (routeRef == null) {
+			routeRef = "";
+		}
+		log.debug("route full name: " + routeName + routeRef);
+		for (int i = 0; i < route.pointsX.length; i++) {
+			log.debug("point: " + MapUtils.get31LongitudeX(route.pointsX[i])
+					+ "," + MapUtils.get31LatitudeY(route.pointsY[i]));
+		}
+		log.debug("route end");
+
+	}
+
 	private void playDigest(final ArrayList<DataSourceObject> toPlay) {
 		Thread thread = new Thread(new Runnable() {
 			@Override
 			public void run() {
-				CommandPlayer p = map.getRoutingHelper().getVoiceRouter().getPlayer();
+				CommandPlayer p = map.getRoutingHelper().getVoiceRouter()
+						.getPlayer();
 				if (p instanceof TTSCommandPlayerImpl) {
 					RoadSpeakPlugin.this.ttsPlayer = (TTSCommandPlayerImpl) p;
-				}				
+				}
+				ttsPlayer.speak(app.getString(R.string.start_play_digest));
 				for (int i = 0; i < toPlay.size(); i++) {
 					DataSourceObject o = toPlay.get(i);
 					if (o instanceof MessageObject) {
@@ -1018,13 +1042,25 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 								} else {
 									String routeName = segment.getRoad()
 											.getName();
-									if (routeName == null
-											|| routeName.equals("")) {
+									String routeRef = segment.getRoad()
+											.getRef();
+									if ((routeName == null || routeName
+											.equals(""))
+											&& (routeRef == null || routeRef
+													.equals(""))) {
 										log.debug("routename unavailable");
-										 ttsPlayer.speak(app.getString(R.string.routename_unavailable));
-									} else {
-										log.debug("routename spoken : " + routeName);
-										 ttsPlayer.speak(routeName);
+										ttsPlayer.speak(app
+												.getString(R.string.routename_unavailable));
+									} else if (routeName != null
+											&& !routeName.equals("")) {
+										log.debug("message from route name : "
+												+ routeName);
+										ttsPlayer.speak(prepare(routeName));
+									} else if (routeRef != null
+											&& !routeRef.equals("")) {
+										log.debug("message from route name : "
+												+ routeRef);
+										ttsPlayer.speak(prepare(routeRef));
 									}
 								}
 							}
@@ -1057,8 +1093,32 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					}
 				}
 			}
+
 		});
 		thread.run();
+	}
+
+	protected String prepare(String routeName) {
+		routeName = routeName.trim();
+		try {
+			int routeRef = Integer.parseInt(routeName);
+			return Digest.ROUTE + " " + Integer.toString(routeRef);
+		} catch (NumberFormatException e) {
+		}
+
+		int ind = routeName.lastIndexOf(" ") + 1;
+		if (ind == 0) {
+			return routeName;
+		}
+		String part = routeName.substring(ind);
+		if (part.equalsIgnoreCase(Digest.ABBR_AVENUE)) {
+			return routeName.substring(0, ind) + Digest.AVENUE;
+		} else if (part.equalsIgnoreCase(Digest.ABBR_ROAD)) {
+			return routeName.substring(0, ind) + Digest.ROAD;
+		} else if (part.equalsIgnoreCase(Digest.ABBR_LANE)) {
+			return routeName.substring(0, ind) + Digest.LANE;
+		}
+		return routeName;
 	}
 
 	private void downloadDigests(final ArrayList<DataSourceObject> toDownload) {
@@ -1125,6 +1185,15 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		public static final int FOUR_MESSAGE = 4;
 		public static final int ALL_MESSAGE = 5;
 		public static final String UNAVAILABLE = "unavailable";
+
+		public static final String ABBR_AVENUE = "ave";
+		public static final String ABBR_ROAD = "rd";
+		public static final String ABBR_LANE = "ln";
+
+		public static final String AVENUE = "avenue";
+		public static final String ROAD = "road";
+		public static final String LANE = "lane";
+		public static final String ROUTE = "route";
 	}
 
 }
