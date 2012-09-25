@@ -93,7 +93,8 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	private OsmandApplication app;
 	private OsmandSettings settings;
 	private static final Log log = LogUtil.getLog(RoadSpeakPlugin.class);
-	private MapInfoControl roadspeakControl;
+	private MapInfoControl roadspeakGroupControl;
+	private MapInfoControl roadspeakFriendControl;
 	private MapInfoControl roadspeakFetchControl;
 	private Handler handler = new Handler();
 
@@ -153,13 +154,23 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	@Override
 	public void registerLayers(MapActivity activity) {
 		MapInfoLayer layer = activity.getMapLayers().getMapInfoLayer();
-		roadspeakControl = createRoadSpeakControl(activity,
+		roadspeakGroupControl = createRoadSpeakGroupControl(activity,
 				layer.getPaintText(), layer.getPaintSubText());
-		layer.getMapInfoControls().registerSideWidget(roadspeakControl,
+		layer.getMapInfoControls().registerSideWidget(roadspeakGroupControl,
 				R.drawable.roadspeak_logged_in_big,
-				R.string.map_widget_roadspeak, "roadspeak", false,
+				R.string.map_widget_roadspeak_group, "roadspeak_group", false,
 				EnumSet.of(ApplicationMode.CAR, ApplicationMode.PEDESTRIAN),
 				EnumSet.noneOf(ApplicationMode.class), 25);
+		roadspeakFriendControl = createRoadSpeakFriendControl(activity,
+				layer.getPaintText(), layer.getPaintSubText());
+		layer.getMapInfoControls().registerSideWidget(roadspeakFriendControl,
+				R.drawable.roadspeak_logged_in_big,
+				R.string.map_widget_roadspeak_friend, "roadspeak_friend", false,
+				EnumSet.of(ApplicationMode.CAR, ApplicationMode.PEDESTRIAN),
+				EnumSet.noneOf(ApplicationMode.class), 26);
+
+		// roadspeakFriendControl = createRoadSpeak
+
 		// plugin to fetch messages
 		roadspeakFetchControl = createRoadSpeakFetchControl(activity,
 				layer.getPaintText(), layer.getPaintSubText());
@@ -268,18 +279,20 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 
 	@Override
 	public void updateLayers(OsmandMapTileView mapView, MapActivity activity) {
-		if (roadspeakControl == null || roadspeakFetchControl == null) {
+		if (roadspeakGroupControl == null || roadspeakFetchControl == null) {
 			registerLayers(activity);
 		}
 	}
 
-	private MapInfoControl createRoadSpeakControl(final MapActivity map,
+	private MapInfoControl createRoadSpeakFriendControl(final MapActivity map,
 			Paint paintText, Paint paintSubText) {
 		final Drawable roadspeakBig = map.getResources().getDrawable(
-				R.drawable.roadspeak_logged_in_big);
+				R.drawable.roadspeak_friends_logged_in);
 		final Drawable roadspeakInactive = map.getResources().getDrawable(
 				R.drawable.monitoring_rec_inactive);
-		roadspeakControl = new TextInfoControl(map, 0, paintText, paintSubText) {
+		roadspeakFriendControl = new TextInfoControl(map, 0, paintText,
+				paintSubText) {
+
 			@Override
 			public boolean updateInfo() {
 				boolean visible = true;
@@ -287,11 +300,11 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				String subtxt = null;
 				Drawable d = roadspeakInactive;
 				if (settings.ROADSPEAK_KEEP_LOGGED_IN.get()) {
-					long count = app.getRoadSpeakHelper()
-							.getOnlineMemberCount();
-					txt = OsmAndFormatter.getFormattedOnlineMemberCount(count,
+					long count = app.getRoadSpeakHelper().getFriendListName()
+							.size();
+					txt = OsmAndFormatter.getFormattedFriendListCount(count,
 							map);
-					subtxt = app.getString(R.string.people);
+					subtxt = app.getString(R.string.friend);
 					d = roadspeakBig;
 				}
 				setText(txt, subtxt);
@@ -300,9 +313,99 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				return true;
 			}
 		};
-		roadspeakControl.updateInfo();
+		roadspeakFriendControl.updateInfo();
+		roadspeakFriendControl.setOnClickListener(new View.OnClickListener() {
 
-		roadspeakControl.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				openFriendListDialog();
+			}
+
+			private void openFriendListDialog() {
+				final ArrayList<Object> list = new ArrayList<Object>();
+				list.addAll(app.getRoadSpeakHelper().getFriendListName());
+
+				Builder b = new AlertDialog.Builder(map);
+				ListAdapter listAdapter = new ArrayAdapter<Object>(map,
+						R.layout.layers_list_activity_item, R.id.title, list) {
+
+					@Override
+					public View getView(int position, View convertView,
+							ViewGroup parent) {
+						View v = convertView;
+						if (v == null) {
+							v = map.getLayoutInflater().inflate(
+									R.layout.layers_list_activity_item, null);
+						}
+						final TextView tv = (TextView) v
+								.findViewById(R.id.title);
+						final CheckBox ch = (CheckBox) v
+								.findViewById(R.id.check_item);
+						Object o = list.get(position);
+						tv.setText(o.toString());
+						tv.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0);
+						tv.setPadding(
+								(int) (5 * MapInfoLayer.scaleCoefficient), 0,
+								0, 0);
+						ch.setVisibility(View.INVISIBLE);
+
+						return v;
+					}
+
+				};
+
+				b.setAdapter(listAdapter,
+						new DialogInterface.OnClickListener() {
+
+							@Override
+							public void onClick(DialogInterface dialog,
+									int which) {
+
+							}
+						});
+
+				final AlertDialog dlg = b.create();
+				dlg.setCanceledOnTouchOutside(true);
+				dlg.show();
+
+			}
+
+		});
+		
+		return roadspeakFriendControl;
+	}
+
+	private MapInfoControl createRoadSpeakGroupControl(final MapActivity map,
+			Paint paintText, Paint paintSubText) {
+		final Drawable roadspeakBig = map.getResources().getDrawable(
+				R.drawable.roadspeak_groups_logged_in);
+		final Drawable roadspeakInactive = map.getResources().getDrawable(
+				R.drawable.monitoring_rec_inactive);
+		roadspeakGroupControl = new TextInfoControl(map, 0, paintText,
+				paintSubText) {
+			@Override
+			public boolean updateInfo() {
+				boolean visible = true;
+				String txt = null;
+				String subtxt = null;
+				Drawable d = roadspeakInactive;
+				if (settings.ROADSPEAK_KEEP_LOGGED_IN.get()) {
+					long count = app.getRoadSpeakHelper().getGroupListName()
+							.size();
+					txt = OsmAndFormatter
+							.getFormattedGroupListCount(count, map);
+					subtxt = app.getString(R.string.group);
+					d = roadspeakBig;
+				}
+				setText(txt, subtxt);
+				setImageDrawable(d);
+				updateVisibility(visible);
+				return true;
+			}
+		};
+		roadspeakGroupControl.updateInfo();
+
+		roadspeakGroupControl.setOnClickListener(new View.OnClickListener() {
 
 			@Override
 			public void onClick(View v) {
@@ -359,7 +462,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			}
 		});
 
-		return roadspeakControl;
+		return roadspeakGroupControl;
 	}
 
 	@Override
@@ -424,6 +527,18 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 						Digest.THREE_MESSAGE, Digest.FOUR_MESSAGE,
 						Digest.ALL_MESSAGE }, R.string.roadspeak_digest_number,
 				R.string.roadspeak_digest_number_description));
+		cat.addPreference(activity.createListPreference(
+				settings.ROADSPEAK_DIGEST_ALGORITHM,
+				new String[] {
+						app.getString(R.string.roadspeak_order_by_speed),
+						app.getString(R.string.roadspeak_order_by_distance_to_src),
+						app.getString(R.string.roadspeak_order_by_distance_to_end),
+						app.getString(R.string.roadspeak_order_by_mix) },
+				new Integer[] { Digest.ORDER_BY_SPEED,
+						Digest.ORDER_BY_DISTANCE_FROM_SRC,
+						Digest.ORDER_BY_DISTANCE_TO_DEST, Digest.ORDER_BY_MIX },
+				R.string.roadspeak_digest_algorithm,
+				R.string.roadspeak_digest_algorithm_description));
 	}
 
 	@Override
@@ -583,14 +698,76 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				ArrayList<DataSourceObject> dataSourceObjectList)
 				throws Exception {
 			TLongObjectHashMap<DataSourceObject> dataSourceObjects = new TLongObjectHashMap<DataSourceObject>();
-			Comparator<DataSourceObject> dataComparator = new Comparator<DataSourceObject>() {
+
+			Comparator<DataSourceObject> dataComparatorBySpeed = new Comparator<DataSourceObject>() {
 				@Override
 				public int compare(DataSourceObject o1, DataSourceObject o2) {
 					return Float.compare(o1.getSpeed(), o2.getSpeed());
 				}
 			};
-			PriorityQueue<DataSourceObject> result = new PriorityQueue<DataSourceObject>(
-					20, dataComparator);
+
+			Comparator<DataSourceObject> dataComparatorByDistanceFromSource = new Comparator<DataSourceObject>() {
+				@Override
+				public int compare(DataSourceObject o1, DataSourceObject o2) {
+					return Double.compare(o1.getDistanceFromStart(),
+							o2.getDistanceFromStart());
+				}
+			};
+
+			Comparator<DataSourceObject> dataComparatorByDistanceToEnd = new Comparator<DataSourceObject>() {
+				@Override
+				public int compare(DataSourceObject o1, DataSourceObject o2) {
+					return Double.compare(o1.getDistanceToEnd(),
+							o2.getDistanceToEnd());
+				}
+			};
+
+			Comparator<DataSourceObject> dataComparatorByMixStrategy = new Comparator<DataSourceObject>() {
+				@Override
+				public int compare(DataSourceObject o1, DataSourceObject o2) {
+					double speedFrac1 = o1.getSpeed() / o1.getMaxAllowedSpeed();
+					double speedFrac2 = o2.getSpeed() / o2.getMaxAllowedSpeed();
+					if (speedFrac1 < Digest.THRESHOLD
+							&& speedFrac2 < Digest.THRESHOLD) {
+						return Double.compare(o1.getDistanceFromStart(),
+								o2.getDistanceFromStart());
+					} else if (speedFrac1 > Digest.THRESHOLD
+							&& speedFrac2 > Digest.THRESHOLD) {
+						return 0;
+					} else {
+						return Double.compare(speedFrac1, speedFrac2);
+					}
+				}
+			};
+
+			PriorityQueue<DataSourceObject> result = null;
+			switch (settings.ROADSPEAK_DIGEST_ALGORITHM.get()) {
+			case Digest.ORDER_BY_SPEED: {
+				result = new PriorityQueue<DataSourceObject>(20,
+						dataComparatorBySpeed);
+				break;
+			}
+			case Digest.ORDER_BY_DISTANCE_FROM_SRC: {
+				result = new PriorityQueue<DataSourceObject>(20,
+						dataComparatorByDistanceFromSource);
+				break;
+			}
+			case Digest.ORDER_BY_DISTANCE_TO_DEST: {
+				result = new PriorityQueue<DataSourceObject>(20,
+						dataComparatorByDistanceToEnd);
+				break;
+			}
+			case Digest.ORDER_BY_MIX: {
+				result = new PriorityQueue<DataSourceObject>(20,
+						dataComparatorByMixStrategy);
+				break;
+			}
+			default: {
+				result = new PriorityQueue<DataSourceObject>(20,
+						dataComparatorByMixStrategy);
+			}
+			}
+
 			ApplicationMode mode = routingHelper.getAppMode();
 			if (mode != ApplicationMode.CAR) {
 				return result;
@@ -629,8 +806,12 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				throw new Exception("start is null");
 			}
 			// logRouteSegment("start", start);
-			checkDataSourceObject(start.getRoad(), start.getSegmentStart(),
-					dataSourceObjects, result);
+			checkDataSourceObject(start.getRoad(), start.getSegmentStart(), 0,
+					MapUtils.getDistance(currentLocation.getLatitude(),
+							currentLocation.getLongitude(),
+							finalLocation.getLatitude(),
+							finalLocation.getLongitude()), dataSourceObjects,
+					result);
 			RouteSegment end = router.findRouteSegment(
 					finalLocation.getLatitude(), finalLocation.getLongitude(),
 					ctx);
@@ -791,6 +972,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					// logRouteSegment("extend",
 					// new RouteSegment(segment.getRoad(), segmentEnd));
 					checkDataSourceObject(segment.getRoad(), segmentEnd,
+							distStartObstacles, distToFinalPoint,
 							dataSourceObjects, result);
 
 					found = checkFoundRoute(segment.getRoad().id, segmentEnd,
@@ -836,7 +1018,8 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		}
 
 		private boolean checkDataSourceObject(RouteDataObject route,
-				int segmentStart,
+				int segmentStart, double distanceFromStart,
+				double distanceToEnd,
 				TLongObjectHashMap<DataSourceObject> dataSourceObjects,
 				PriorityQueue<DataSourceObject> toFill) {
 			long nt = (route.id << BinaryRoutePlanner.ROUTE_POINTS)
@@ -844,6 +1027,9 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			if (dataSourceObjects.contains(nt)) {
 				DataSourceObject o = dataSourceObjects.get(nt);
 				if (o != null && !toFill.contains(o)) {
+					o.setDistanceFromStart(distanceFromStart);
+					o.setDistanceToEnd(distanceToEnd);
+					o.setMaxAllowedSpeed(route.getMaximumSpeed());
 					o.attachSegment(new RouteSegment(route, segmentStart));
 					toFill.add(o);
 					return true;
@@ -861,6 +1047,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					RouteSegment s = router.findRouteSegment(o.getLat(),
 							o.getLon(), ctx);
 					if (s != null) {
+
 						RouteDataObject road = s.getRoad();
 						long nt = (road.getId() << BinaryRoutePlanner.ROUTE_POINTS)
 								+ s.getSegmentStart();
@@ -922,8 +1109,9 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 						}
 						if (next.parentRoute == null) {
 							checkDataSourceObject(next.getRoad(),
-									next.getSegmentStart(), dataSourceObjects,
-									result);
+									next.getSegmentStart(),
+									next.distanceFromStart, next.distanceToEnd,
+									dataSourceObjects, result);
 							boolean found = checkFoundRoute(next.getRoad()
 									.getId(), next.getSegmentStart(), end);
 							if (found) {
@@ -1194,6 +1382,13 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		public static final String ROAD = "road";
 		public static final String LANE = "lane";
 		public static final String ROUTE = "route";
+
+		public static final int ORDER_BY_SPEED = 1;
+		public static final int ORDER_BY_DISTANCE_FROM_SRC = 2;
+		public static final int ORDER_BY_DISTANCE_TO_DEST = 3;
+		public static final int ORDER_BY_MIX = 4;
+
+		public static final double THRESHOLD = 0.1D;
 	}
 
 }

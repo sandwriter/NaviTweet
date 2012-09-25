@@ -48,7 +48,7 @@ public class RoadSpeakHelper {
 	private long lastTimeUpdated = 0L;
 	private final static Log LOG = LogUtil.getLog(RoadSpeakHelper.class);
 
-	private long onlineMemberCount = 0;
+	private ArrayList<String> friendListName = new ArrayList<String>();
 	private ArrayList<String> groupListName = new ArrayList<String>();
 
 	private MediaRecorder recorder = null;
@@ -80,12 +80,12 @@ public class RoadSpeakHelper {
 		return settings.ROADSPEAK_KEEP_LOGGED_IN.get();
 	}
 
-	public synchronized long getOnlineMemberCount() {
-		return onlineMemberCount;
-	}
-
 	public synchronized ArrayList<String> getGroupListName() {
 		return groupListName;
+	}
+
+	public synchronized ArrayList<String> getFriendListName() {
+		return friendListName;
 	}
 
 	public void fetchData(long time) {
@@ -154,9 +154,13 @@ public class RoadSpeakHelper {
 	private synchronized void updateData(String responseBody) {
 		try {
 			JSONObject o = new JSONObject(responseBody);
-			onlineMemberCount = o.getLong(ctx
-					.getString(R.string.roadspeak_online_member_count_key));
 			JSONArray array = o.getJSONArray(ctx
+					.getString(R.string.roadspeak_friendlist_name_key));
+			friendListName.clear();
+			for (int i = 0; i < array.length(); i++) {
+				friendListName.add(array.getString(i));
+			}
+			array = o.getJSONArray(ctx
 					.getString(R.string.roadspeak_grouplist_name_key));
 			groupListName.clear();
 			for (int i = 0; i < array.length(); i++) {
@@ -486,6 +490,9 @@ public class RoadSpeakHelper {
 		protected float accuracy;
 		protected long time;
 		protected RouteSegment segment;
+		protected double distanceFromStart;
+		protected double distanceToEnd;
+		protected double maxAllowedSpeed;
 
 		public DataSourceObject(float lat, float lon, float alt, float speed,
 				float bearing, float accuracy, long time) {
@@ -497,6 +504,9 @@ public class RoadSpeakHelper {
 			this.accuracy = accuracy;
 			this.time = time;
 			this.segment = null;
+			this.distanceFromStart = 0D;
+			this.distanceToEnd = 0D;
+			this.maxAllowedSpeed = 0D;
 		}
 
 		public float getLat() {
@@ -533,6 +543,30 @@ public class RoadSpeakHelper {
 
 		public void attachSegment(RouteSegment segment) {
 			this.segment = segment;
+		}
+
+		public double getDistanceFromStart() {
+			return distanceFromStart;
+		}
+
+		public void setDistanceFromStart(double distanceFromStart) {
+			this.distanceFromStart = distanceFromStart;
+		}
+
+		public double getDistanceToEnd() {
+			return distanceToEnd;
+		}
+
+		public void setDistanceToEnd(double distanceToEnd) {
+			this.distanceToEnd = distanceToEnd;
+		}
+
+		public double getMaxAllowedSpeed() {
+			return maxAllowedSpeed;
+		}
+
+		public void setMaxAllowedSpeed(double maxAllowedSpeed) {
+			this.maxAllowedSpeed = maxAllowedSpeed;
 		}
 	}
 

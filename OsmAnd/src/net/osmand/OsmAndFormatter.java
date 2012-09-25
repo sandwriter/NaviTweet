@@ -9,6 +9,7 @@ import net.osmand.plus.OsmandApplication;
 import net.osmand.plus.OsmandSettings;
 import net.osmand.plus.OsmandSettings.MetricsConstants;
 import net.osmand.plus.R;
+import net.osmand.plus.activities.MapActivity;
 import android.content.Context;
 
 public class OsmAndFormatter {
@@ -120,7 +121,7 @@ public class OsmAndFormatter {
 		}
 	}
 
-	public static String getFormattedOnlineMemberCount(long count, Context ctx) {
+	public static String getFormattedGroupListCount(long count, Context ctx) {
 		return Long.toString(count);
 	}
 
@@ -211,5 +212,9 @@ public class OsmAndFormatter {
 		int sec = seconds % 60;
 		return Integer.toString(min) + ":" + (sec < 10 ? "0" : "")
 				+ Integer.toString(sec);
+	}
+
+	public static String getFormattedFriendListCount(long count, MapActivity map) {
+		return Long.toString(count);
 	}
 }

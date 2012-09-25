@@ -1168,4 +1168,15 @@ You can enable (online or cached) tile map sources, tracking settings, and many 
 <string name="roadspeak_digest_message_download_url_description">Specify the web address for downloading message</string>
 <string name="routename_unavailable">Route name unavailable</string>
 <string name="start_play_digest">Here is the traffic digest</string>
+<string name="roadspeak_order_by_speed">Speed</string>
+<string name="roadspeak_order_by_distance_to_src">Distance to current loc</string>
+<string name="roadspeak_order_by_distance_to_end">Distance to end loc</string>
+<string name="roadspeak_order_by_mix">Mix strategy</string>
+<string name="roadspeak_digest_algorithm">Digest algorithm</string>
+<string name="roadspeak_digest_algorithm_description">Specify RoadSpeak digest generation algorithm</string>
+<string name="roadspeak_friendlist_name_key">rfn</string>
+<string name="group">grp</string>
+<string name="friend">ppl</string>
+<string name="map_widget_roadspeak_group">RoadSpeak groups</string>
+<string name="map_widget_roadspeak_friend">RoadSpeak friends</string>
 </resources>

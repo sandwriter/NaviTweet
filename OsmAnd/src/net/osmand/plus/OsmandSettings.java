@@ -558,6 +558,8 @@ public class OsmandSettings {
 	public final CommonPreference<Integer> ROADSPEAK_UPDATE_INTERVAL = new IntPreference("roadspeak_update_interval", 10).makeGlobal();
 	
 	public final CommonPreference<Integer> ROADSPEAK_DIGEST_NUMBER = new IntPreference("roadspeak_digest_number", Digest.FOUR_MESSAGE).makeGlobal();
+	
+	public final CommonPreference<Integer> ROADSPEAK_DIGEST_ALGORITHM = new IntPreference("roadspeak_digest_algorithm", Digest.ORDER_BY_MIX).makeGlobal();
 		
 	// this value boolean is synchronized with settings_pref.xml preference offline POI/Bugs edition
 	public final OsmandPreference<Boolean> OFFLINE_EDITION = new BooleanPreference("offline_edition", false).makeGlobal();
