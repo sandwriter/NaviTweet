@@ -62,15 +62,20 @@ import org.xml.sax.SAXException;
 import android.app.AlertDialog;
 import android.app.AlertDialog.Builder;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.media.MediaPlayer;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.preference.EditTextPreference;
 import android.preference.PreferenceCategory;
 import android.preference.PreferenceScreen;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.text.InputType;
 import android.view.View;
 import android.view.ViewGroup;
@@ -110,6 +115,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	private RoutingHelper routingHelper;
 	private MessageRouteHelper messageRouteHelper;
 	private TTSCommandPlayerImpl ttsPlayer = null;
+	public static Decision decision = null;
 
 	public RoadSpeakPlugin(OsmandApplication app) {
 		this.app = app;
@@ -165,7 +171,8 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				layer.getPaintText(), layer.getPaintSubText());
 		layer.getMapInfoControls().registerSideWidget(roadspeakFriendControl,
 				R.drawable.roadspeak_logged_in_big,
-				R.string.map_widget_roadspeak_friend, "roadspeak_friend", false,
+				R.string.map_widget_roadspeak_friend, "roadspeak_friend",
+				false,
 				EnumSet.of(ApplicationMode.CAR, ApplicationMode.PEDESTRIAN),
 				EnumSet.noneOf(ApplicationMode.class), 26);
 
@@ -371,7 +378,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 			}
 
 		});
-		
+
 		return roadspeakFriendControl;
 	}
 
@@ -639,7 +646,9 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		}
 
 		public void pause() {
-			schedulerHandler.cancel(true);
+			if (schedulerHandler != null) {
+				schedulerHandler.cancel(true);
+			}
 		}
 
 		public void onCountDown() {
@@ -1197,6 +1206,11 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				if (p instanceof TTSCommandPlayerImpl) {
 					RoadSpeakPlugin.this.ttsPlayer = (TTSCommandPlayerImpl) p;
 				}
+				if (decision == null) {
+					decision = new Decision();
+				}
+				decision.clear();
+				decision.setTTSPlayer(ttsPlayer);
 				ttsPlayer.speak(app.getString(R.string.start_play_digest));
 				for (int i = 0; i < toPlay.size(); i++) {
 					DataSourceObject o = toPlay.get(i);
@@ -1268,6 +1282,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 								mPlayer.release();
 								mPlayer = null;
 								Thread.sleep(1000);
+								decision.ask(message);
 							} catch (IllegalArgumentException e) {
 								e.printStackTrace();
 							} catch (IllegalStateException e) {
@@ -1277,6 +1292,16 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 							} catch (InterruptedException e) {
 								e.printStackTrace();
 							}
+						}
+						synchronized (decision) {
+							while (!decision.decided) {
+								try {
+									decision.wait();
+								} catch (InterruptedException e) {
+									e.printStackTrace();
+								}
+							}
+							decision.decided = false;
 						}
 					}
 				}
@@ -1389,6 +1414,164 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		public static final int ORDER_BY_MIX = 4;
 
 		public static final double THRESHOLD = 0.1D;
+	}
+
+	public class Decision {
+		private ArrayList<RouteSegment> preferList = new ArrayList<RouteSegment>();
+		private ArrayList<RouteSegment> avoidList = new ArrayList<RouteSegment>();
+		private TTSCommandPlayerImpl ttsPlayer = null;
+		public static final String QUESTION = "do you want to avoid this route? yes or no?";
+		public final String[] ANS_YES = new String[] { "yes", "avoid" };
+		public final String[] ANS_NO = new String[] { "no", "prefer" };
+		private RouteSegment segment = null;
+		public boolean decided = false;
+		public final static double PENALTY = 3600; // an hour?
+
+		public void clear() {
+			preferList.clear();
+			avoidList.clear();
+		}
+
+		public void setTTSPlayer(TTSCommandPlayerImpl ttsPlayer) {
+			this.ttsPlayer = ttsPlayer;
+		}
+
+		public void ask(MessageObject message) {
+			ttsPlayer.speak(QUESTION);
+			segment = message.getSegment();
+			handler.post(new Runnable() {
+				@Override
+				public void run() {
+					getAnswer(preferList, avoidList);
+				}
+			});
+		}
+
+		protected void getAnswer(ArrayList<RouteSegment> preferList,
+				ArrayList<RouteSegment> avoidList) {
+			Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+			intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+					RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+			intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE,
+					"net.osmand.plus.roadspeak");
+			SpeechRecognizer recognizer = SpeechRecognizer
+					.createSpeechRecognizer(map.getApplicationContext());
+			RecognitionListener listener = new RecognitionListener() {
+
+				@Override
+				public void onBeginningOfSpeech() {
+				}
+
+				@Override
+				public void onBufferReceived(byte[] buffer) {
+				}
+
+				@Override
+				public void onEndOfSpeech() {
+					Toast.makeText(map, "analysing voice...",
+							Toast.LENGTH_SHORT).show();
+				}
+
+				@Override
+				public void onError(int error) {
+					log.error("speech to text error : " + error);
+					ignore(segment);
+					synchronized (decision) {
+						decided = true;
+						decision.notifyAll();
+					}
+				}
+
+				@Override
+				public void onEvent(int eventType, Bundle params) {
+				}
+
+				@Override
+				public void onPartialResults(Bundle partialResults) {
+				}
+
+				@Override
+				public void onReadyForSpeech(Bundle params) {
+				}
+
+				@Override
+				public void onResults(Bundle results) {
+					ArrayList<String> voiceResults = results
+							.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+					boolean found = false;
+					if (voiceResults == null) {
+						log.debug("No voice result");
+					} else {
+						for (String ans : voiceResults) {
+							if (parseAns(ans)) {
+								found = true;
+								break;
+							}
+						}
+						if (!found) {
+							ignore(segment);
+						}
+					}
+					synchronized (decision) {
+						decided = true;
+						decision.notifyAll();
+					}
+				}
+
+				@Override
+				public void onRmsChanged(float rmsdB) {
+				}
+
+			};
+			recognizer.setRecognitionListener(listener);
+			recognizer.startListening(intent);
+		}
+
+		protected void ignore(RouteSegment segment) {
+			String roadname = segment.getRoad().getName();
+			Toast.makeText(map, "don't understand your answer",
+					Toast.LENGTH_SHORT).show();
+			log.debug("ignored : " + (roadname == null ? "" : roadname));
+		}
+
+		protected boolean parseAns(String ans) {
+			for (String p : ANS_YES) {
+				if (ans.equalsIgnoreCase(p)) {
+					avoid(segment);
+					return true;
+				}
+			}
+			for (String p : ANS_NO) {
+				if (ans.equalsIgnoreCase(p)) {
+					prefer(segment);
+					return true;
+				}
+			}
+			return false;
+		}
+
+		private void prefer(RouteSegment segment) {
+			preferList.add(segment);
+			String roadname = segment.getRoad().getName();
+			Toast.makeText(map, "don't avoid", Toast.LENGTH_SHORT).show();
+			log.debug("prefered : " + (roadname == null ? "" : roadname));
+		}
+
+		private void avoid(RouteSegment segment) {
+			avoidList.add(segment);
+			String roadname = segment.getRoad().getName();
+			Toast.makeText(map, "avoid", Toast.LENGTH_SHORT).show();
+			log.debug("avoid : " + (roadname == null ? "" : roadname));
+		}
+
+		public ArrayList<RouteSegment> getPreferList() {
+			return preferList;
+		}
+
+		public synchronized ArrayList<RouteSegment> getAvoidList() {
+			return avoidList;
+		}
+
 	}
 
 }

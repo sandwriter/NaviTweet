@@ -15,10 +15,13 @@ import net.osmand.plus.OsmandSettings;
 import net.osmand.plus.OsmandSettings.MetricsConstants;
 import net.osmand.plus.R;
 import net.osmand.plus.activities.ApplicationMode;
+import net.osmand.plus.roadspeak.RoadSpeakPlugin;
+import net.osmand.plus.roadspeak.RoadSpeakPlugin.Decision;
 import net.osmand.plus.routing.RouteCalculationResult.NextDirectionInfo;
 import net.osmand.plus.routing.RouteProvider.GPXRouteParams;
 import net.osmand.plus.routing.RouteProvider.RouteService;
 import net.osmand.plus.voice.CommandPlayer;
+import net.osmand.router.BinaryRoutePlanner.RouteSegment;
 import net.osmand.router.Interruptable;
 import net.osmand.router.RouteSegmentResult;
 import android.content.Context;
@@ -707,5 +710,5 @@ public class RoutingHelper {
 	public GPXFile generateGPXFileWithRoute() {
 		return provider.createOsmandRouterGPX(route);
 	}
-
+	
 }

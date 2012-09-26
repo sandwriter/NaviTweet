@@ -129,7 +129,7 @@ public class BinaryRoutePlanner {
 		int foundProjX = 0;
 		int foundProjY = 0;
 
-		for (RouteDataObject r : dataObjects) {			
+		for (RouteDataObject r : dataObjects) {
 			if (r.getPointsLength() > 1) {
 				for (int j = 1; j < r.getPointsLength(); j++) {
 					double mDist = squareRootDist(r.getPoint31XTile(j),
@@ -173,7 +173,6 @@ public class BinaryRoutePlanner {
 		}
 		return road;
 	}
-	
 
 	// TODO TO-DO U-TURN
 	// TODO fastest/shortest way
@@ -488,18 +487,18 @@ public class BinaryRoutePlanner {
 		if (graphDirectSegments != null && graphReverseSegments != null) {
 			println("Priority queues sizes : " + graphDirectSegments.size()
 					+ "/" + graphReverseSegments.size());
-//			println("graphDirectSegments:");
-//			printQueue(graphDirectSegments);
-//			println("graphReverseSegments:");
-//			printQueue(graphReverseSegments);
+			// println("graphDirectSegments:");
+			// printQueue(graphDirectSegments);
+			// println("graphReverseSegments:");
+			// printQueue(graphReverseSegments);
 		}
 		if (visitedDirectSegments != null && visitedOppositeSegments != null) {
 			println("Visited segments sizes: " + visitedDirectSegments.size()
 					+ "/" + visitedOppositeSegments.size());
-//			println("visitedDirectSegments:");
-//			printMap(visitedDirectSegments);
-//			println("visitedOppositeSegments:");
-//			printMap(visitedOppositeSegments);
+			// println("visitedDirectSegments:");
+			// printMap(visitedDirectSegments);
+			// println("visitedOppositeSegments:");
+			// printMap(visitedOppositeSegments);
 		}
 
 	}
@@ -514,7 +513,14 @@ public class BinaryRoutePlanner {
 					if (rs != null) {
 						RouteDataObject o = rs.getRoad();
 						if (o != null && o.getName() != null) {
-							println(o.getName() + ":>" + rs.getSegmentStart() + ":<" + (rs.parentRoute.getRoad().getName() == null? "": rs.parentRoute.getRoad().getName()) + "--" + rs.parentSegmentEnd);
+							println(o.getName()
+									+ ":>"
+									+ rs.getSegmentStart()
+									+ ":<"
+									+ (rs.parentRoute.getRoad().getName() == null ? ""
+											: rs.parentRoute.getRoad()
+													.getName()) + "--"
+									+ rs.parentSegmentEnd);
 						}
 					}
 				}
@@ -531,8 +537,14 @@ public class BinaryRoutePlanner {
 				while (iterator.hasNext()) {
 					RouteSegment rs = iterator.next();
 					RouteDataObject o = rs.getRoad();
-					if (o != null && o.getName() != null) {						
-						println(o.getName() + "-" + rs.getSegmentStart() + "-" + (rs.parentRoute.getRoad().getName() == null? "": rs.parentRoute.getRoad().getName()) + "-" + rs.parentSegmentEnd);
+					if (o != null && o.getName() != null) {
+						println(o.getName()
+								+ "-"
+								+ rs.getSegmentStart()
+								+ "-"
+								+ (rs.parentRoute.getRoad().getName() == null ? ""
+										: rs.parentRoute.getRoad().getName())
+								+ "-" + rs.parentSegmentEnd);
 					}
 				}
 			}
@@ -657,6 +669,8 @@ public class BinaryRoutePlanner {
 					continue;
 				}
 				obstaclePlusTime += obstacle;
+				obstaclePlusTime += ctx.defineUserObstacle(road, segmentEnd);
+
 			} else {
 				double obstacle = ctx.getRouter().defineObstacle(road,
 						segmentEnd);
@@ -665,6 +679,8 @@ public class BinaryRoutePlanner {
 					continue;
 				}
 				obstacleMinusTime += obstacle;
+				obstacleMinusTime += ctx.defineUserObstacle(road, segmentEnd);
+
 			}
 
 			long l = (((long) x) << 31) + (long) y;

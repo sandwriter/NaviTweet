@@ -35,6 +35,7 @@ import net.osmand.plus.R;
 import net.osmand.plus.ResourceManager;
 import net.osmand.plus.activities.ApplicationMode;
 import net.osmand.plus.render.NativeOsmandLibrary;
+import net.osmand.plus.roadspeak.RoadSpeakPlugin;
 import net.osmand.router.BinaryRoutePlanner;
 import net.osmand.router.BinaryRoutePlanner.RouteSegment;
 import net.osmand.router.GeneralRouter.GeneralRouterProfile;
@@ -335,6 +336,8 @@ public class RouteProvider {
 		RoutingContext ctx = new RoutingContext(config.build(p.name().toLowerCase(), !fast, start.hasBearing() ?  start.getBearing() / 180d * Math.PI : null));
 		ctx.interruptable = interruptable;
 		ctx.previouslyCalculatedRoute = previousRoute;
+		ctx.segmentsToAvoid.clear();		
+		ctx.segmentsToAvoid.addAll(RoadSpeakPlugin.decision.getAvoidList());
 		RouteSegment st= router.findRouteSegment(start.getLatitude(), start.getLongitude(), ctx);
 		if (st == null) {
 			return new RouteCalculationResult(app.getString(R.string.starting_point_too_far));
