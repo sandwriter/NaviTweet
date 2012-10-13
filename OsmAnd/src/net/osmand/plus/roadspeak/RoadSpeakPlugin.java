@@ -1306,7 +1306,6 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 					}
 				}
 			}
-
 		});
 		thread.run();
 	}
@@ -1425,7 +1424,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		public final String[] ANS_NO = new String[] { "no", "prefer" };
 		private RouteSegment segment = null;
 		public boolean decided = false;
-		public final static double PENALTY = 3600; // an hour?
+		public final static double PENALTY = 3600; // an hour?		
 
 		public void clear() {
 			preferList.clear();
@@ -1571,7 +1570,6 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		public synchronized ArrayList<RouteSegment> getAvoidList() {
 			return avoidList;
 		}
-
 	}
 
 }

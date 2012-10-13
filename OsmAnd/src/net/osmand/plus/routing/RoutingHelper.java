@@ -184,7 +184,7 @@ public class RoutingHelper {
 
 		boolean calculateRoute = false;
 		synchronized (this) {
-			// 0. Route empty or needs to be extended? Then re-calculate route.
+			// 0. Route empty or needs to be extended? Then re-calculate route
 			if (route.isEmpty()) {
 				calculateRoute = true;
 			} else {
