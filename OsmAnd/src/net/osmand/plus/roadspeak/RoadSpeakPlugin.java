@@ -676,6 +676,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		public void route() {
 			final PriorityQueue<DataSourceObject> target;
 			try {
+				log.debug("start routing");
 				RoutingHelper routingHelper = map.getRoutingHelper();
 				target = routeQuery(currentLocation, finalLocation,
 						dataSourceObjectList);

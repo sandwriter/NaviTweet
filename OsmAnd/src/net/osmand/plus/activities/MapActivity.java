@@ -3,6 +3,9 @@ package net.osmand.plus.activities;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import net.osmand.Algoritms;
 import net.osmand.GPXUtilities;
@@ -1428,6 +1431,16 @@ public class MapActivity extends AccessibleActivity implements
 		});
 		roadSpeakDialogEnabled = true;
 		roadSpeakHelper.recordMessage();
+		ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+		scheduler.schedule(new Runnable(){
+			@Override
+			public void run() {
+				if(dlg.isShowing()){
+					// add a lock?
+					dlg.cancel();
+				}					
+			}				
+		}, 15, TimeUnit.SECONDS);
 	}
 
 	@Override

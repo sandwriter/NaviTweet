@@ -7,6 +7,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import net.osmand.LogUtil;
 import net.osmand.osm.LatLon;
@@ -303,7 +306,7 @@ public class RoadSpeakHelper {
 		recorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
 		try {
 			recorder.prepare();
-			recorder.start();
+			recorder.start();			
 		} catch (IOException e) {
 			LOG.error(LogUtil.TAG, e);
 		}

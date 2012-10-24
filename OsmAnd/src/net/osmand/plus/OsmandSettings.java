@@ -537,19 +537,19 @@ public class OsmandSettings {
 	public final OsmandPreference<String> USER_PASSWORD = 
 		new StringPreference("user_password", "").makeGlobal();
 	
-	public final OsmandPreference<String> ROADSPEAK_USER_NAME = new StringPreference("roadspeak_user_name", "NoName").makeGlobal();
+	public final OsmandPreference<String> ROADSPEAK_USER_NAME = new StringPreference("roadspeak_user_name", "guest").makeGlobal();
 	
-	public final OsmandPreference<String> ROADSPEAK_USER_PASSWORD = new StringPreference("roadspeak_user_password", "").makeGlobal();
+	public final OsmandPreference<String> ROADSPEAK_USER_PASSWORD = new StringPreference("roadspeak_user_password", "guest").makeGlobal();
 
-	public final OsmandPreference<Boolean> ROADSPEAK_KEEP_LOGGED_IN = new BooleanPreference("roadspeak_keep_logged_in", false).makeGlobal();
+	public final OsmandPreference<Boolean> ROADSPEAK_KEEP_LOGGED_IN = new BooleanPreference("roadspeak_keep_logged_in", true).makeGlobal();
 	
-	public final OsmandPreference<String> ROADSPEAK_UPDATE_URL = new StringPreference("roadspeak_update_url", "http://qbert.rutgers.edu:8080/update.php?username={0}&password={1}").makeGlobal();
+	public final OsmandPreference<String> ROADSPEAK_UPDATE_URL = new StringPreference("roadspeak_update_url", "http://ec2-50-17-35-116.compute-1.amazonaws.com/update.php?username={0}&password={1}").makeGlobal();
 	
-	public final OsmandPreference<String> ROADSPEAK_UPDATE_ENVIRONMENT_URL = new StringPreference("roadspeak_update_environment_url", "http://qbert.rutgers.edu:8080/updateenv.php?username={0}&password={1}&lat={2}&lon={3}&alt={4}&speed={5}&bearing={6}&hdop={7}&time={8}&tgtlat={9}&tgtlon={10}").makeGlobal();
+	public final OsmandPreference<String> ROADSPEAK_UPDATE_ENVIRONMENT_URL = new StringPreference("roadspeak_update_environment_url", "http://ec2-50-17-35-116.compute-1.amazonaws.com/updateenv.php?username={0}&password={1}&lat={2}&lon={3}&alt={4}&speed={5}&bearing={6}&hdop={7}&time={8}&tgtlat={9}&tgtlon={10}").makeGlobal();
 	
-	public final OsmandPreference<String> ROADSPEAK_UPLOAD_URL = new StringPreference("roadspeak_upload_url", "http://qbert.rutgers.edu:8080/upload.php").makeGlobal();
+	public final OsmandPreference<String> ROADSPEAK_UPLOAD_URL = new StringPreference("roadspeak_upload_url", "http://ec2-50-17-35-116.compute-1.amazonaws.com/upload.php").makeGlobal();
 	
-	public final OsmandPreference<String> ROADSPEAK_DOWNLOAD_URL = new StringPreference("roadspeak_download_url", "http://qbert.rutgers.edu:8080/download.php").makeGlobal();
+	public final OsmandPreference<String> ROADSPEAK_DOWNLOAD_URL = new StringPreference("roadspeak_download_url", "http://ec2-50-17-35-116.compute-1.amazonaws.com/download.php").makeGlobal();
 	
 	public final OsmandPreference<String> ROADSPEAK_DOWNLOAD_MESSAGE_URL = new StringPreference("roadspeak_download_message_url", "http://ec2-50-17-35-116.compute-1.amazonaws.com/message").makeGlobal();
 	
