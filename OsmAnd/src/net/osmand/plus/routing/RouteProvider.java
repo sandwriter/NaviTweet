@@ -338,6 +338,16 @@ public class RouteProvider {
 		ctx.previouslyCalculatedRoute = previousRoute;
 		ctx.segmentsToAvoid.clear();		
 		ctx.segmentsToAvoid.addAll(RoadSpeakPlugin.decision.getAvoidList());
+		
+		StringBuilder s = new StringBuilder();
+		s.append("the avoid list: ");
+		for(RouteSegment r : ctx.segmentsToAvoid){
+			s.append("id: " + r.getRoad().id);
+			s.append("name: " + r.getRoad().getName());
+			s.append("segmentstart: " + r.getSegmentStart());
+		}
+		log.debug(s.toString());
+		
 		RouteSegment st= router.findRouteSegment(start.getLatitude(), start.getLongitude(), ctx);
 		if (st == null) {
 			return new RouteCalculationResult(app.getString(R.string.starting_point_too_far));

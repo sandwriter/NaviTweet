@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import android.util.Log;
+
 import net.osmand.NativeLibrary;
 import net.osmand.NativeLibrary.NativeRouteSearchResult;
 import net.osmand.ResultMatcher;
@@ -459,15 +461,17 @@ public class RoutingContext {
 
 	}
 
-	public double defineUserObstacle(RouteDataObject road, int segmentEnd) {
-		final double PENALTY = 3600D;
+	// use the answer for voice tweet as user obstacle value : NaviTweet
+	public boolean isAvoid(RouteDataObject road, int segmentEnd) {
 		for (RouteSegment s : segmentsToAvoid) {
-			if (s.getRoad().getId() == road.getId()
-					&& segmentEnd == s.getSegmentStart()) {
-				return PENALTY;
+			if (s.getRoad().id == road.getId()){
+				if(segmentEnd == s.getSegmentStart()) {
+					Log.d("defineUserObstacle", "pentaly set");
+					return true;
+				}
 			}
 		}
-		return 0;
+		return false;
 
 	}
 }

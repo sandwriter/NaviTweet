@@ -644,6 +644,7 @@ public class BinaryRoutePlanner {
 			// if we found end point break cycle
 			long nts = (road.getId() << ROUTE_POINTS) + segmentEnd;
 			visitedSegments.put(nts, segment);
+			
 
 			// 2. calculate point and try to load neighbor ways if they are not
 			// loaded
@@ -664,23 +665,19 @@ public class BinaryRoutePlanner {
 			if (positive) {
 				double obstacle = ctx.getRouter().defineObstacle(road,
 						segmentEnd);
-				if (obstacle < 0) {
+				if (obstacle < 0 || ctx.isAvoid(road, segmentEnd)) {
 					plusAllowed = false;
 					continue;
 				}
 				obstaclePlusTime += obstacle;
-				obstaclePlusTime += ctx.defineUserObstacle(road, segmentEnd);
-
 			} else {
 				double obstacle = ctx.getRouter().defineObstacle(road,
 						segmentEnd);
-				if (obstacle < 0) {
+				if (obstacle < 0 || ctx.isAvoid(road, segmentEnd)) {
 					minusAllowed = false;
 					continue;
 				}
 				obstacleMinusTime += obstacle;
-				obstacleMinusTime += ctx.defineUserObstacle(road, segmentEnd);
-
 			}
 
 			long l = (((long) x) << 31) + (long) y;
@@ -708,11 +705,11 @@ public class BinaryRoutePlanner {
 						+ distOnRoadToPass / speed;
 
 				double distToFinalPoint = squareRootDist(x, y, targetEndX,
-						targetEndY);
+						targetEndY);				
 				boolean routeFound = processIntersections(ctx, graphSegments,
 						visitedSegments, oppositeSegments, distStartObstacles,
 						distToFinalPoint, segment, segmentEnd, next,
-						reverseWaySearch);
+						reverseWaySearch);			
 				if (routeFound) {
 					return routeFound;
 				}
@@ -828,7 +825,7 @@ public class BinaryRoutePlanner {
 			}
 			long nts = (next.road.getId() << ROUTE_POINTS) + next.segmentStart;
 
-			// 1. Check if opposite segment found so we can stop calculations
+//			 1. Check if opposite segment found so we can stop calculations
 			if (oppositeSegments.contains(nts)
 					&& oppositeSegments.get(nts) != null) {
 				// check restrictions
@@ -844,6 +841,7 @@ public class BinaryRoutePlanner {
 					ctx.finalReverseEndSegment = next.segmentStart;
 					ctx.finalReverseRoute = opposite;
 				}
+
 				return true;
 			}
 			// road.id could be equal on roundabout, but we should accept them
@@ -864,6 +862,9 @@ public class BinaryRoutePlanner {
 					next.parentRoute = segment;
 					next.parentSegmentEnd = segmentEnd;
 					graphSegments.add(next);
+					
+					
+					
 				}
 				if (ctx.visitor != null) {
 					ctx.visitor.visitSegment(next, false);

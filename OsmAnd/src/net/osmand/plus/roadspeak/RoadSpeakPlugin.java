@@ -24,6 +24,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import net.osmand.LogUtil;
 import net.osmand.OsmAndFormatter;
@@ -1162,20 +1164,21 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	public void downloadAndPlayDigest(PriorityQueue<DataSourceObject> target) {
 		log.debug("download and play digest");
 		ArrayList<DataSourceObject> ds = new ArrayList<DataSourceObject>();
-		if (settings.ROADSPEAK_DIGEST_NUMBER.get() <= 4) {
-			DataSourceObject o;
-			for (int i = 0; i < settings.ROADSPEAK_DIGEST_NUMBER.get()
-					&& !target.isEmpty(); i++) {
-				o = target.poll();
+		int i = 0;
+		while(!target.isEmpty() && i < settings.ROADSPEAK_DIGEST_NUMBER.get()){
+			DataSourceObject o = target.poll();
+			if(o instanceof MessageObject){
 				ds.add(o);
-			}
-		} else {
-			DataSourceObject o;
-			while (!target.isEmpty()) {
-				o = target.poll();
-				ds.add(o);
+				i++;				
 			}
 		}
+
+		StringBuilder s = new StringBuilder();
+		s.append("digest:");
+		for(DataSourceObject d : ds){
+
+		}
+		log.debug("number of digest: " + ds.size());
 		downloadDigests(ds);
 		playDigest(ds);
 	}
@@ -1283,7 +1286,7 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 								mPlayer.release();
 								mPlayer = null;
 								Thread.sleep(1000);
-								decision.ask(message);
+								// decision.ask(message);
 							} catch (IllegalArgumentException e) {
 								e.printStackTrace();
 							} catch (IllegalStateException e) {
@@ -1294,15 +1297,15 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 								e.printStackTrace();
 							}
 						}
-						synchronized (decision) {
-							while (!decision.decided) {
-								try {
-									decision.wait();
-								} catch (InterruptedException e) {
-									e.printStackTrace();
-								}
-							}
-							decision.decided = false;
+					}
+				}
+				decision.answer(toPlay);
+				synchronized (decision) {
+					while (!decision.decided) {
+						try {
+							decision.wait();
+						} catch (InterruptedException e) {
+							e.printStackTrace();
 						}
 					}
 				}
@@ -1417,34 +1420,46 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 	}
 
 	public class Decision {
+		private ArrayList<DataSourceObject> toPlay = new ArrayList<DataSourceObject>();
 		private ArrayList<RouteSegment> preferList = new ArrayList<RouteSegment>();
 		private ArrayList<RouteSegment> avoidList = new ArrayList<RouteSegment>();
 		private TTSCommandPlayerImpl ttsPlayer = null;
-		public static final String QUESTION = "do you want to avoid this route? yes or no?";
-		public final String[] ANS_YES = new String[] { "yes", "avoid" };
-		public final String[] ANS_NO = new String[] { "no", "prefer" };
+		// public static final String QUESTION =
+		// "do you want to avoid this route? yes or no?";
+		public static final String QUESTION = "Which routes do you want to avoid or prefer?";
+		public final String[] ANS_AVOID = new String[] { "reject", "avoid" };
+		public final String[] ANS_PREFER = new String[] { "accept", "prefer" };
+		public final String[] ANS_NUMBER = new String[] { "one", "two",
+				"three", "four", "five", "six", "seven", "eight", "nine", "ten" };
 		private RouteSegment segment = null;
 		public boolean decided = false;
-		public final static double PENALTY = 3600; // an hour?		
+		public final static double PENALTY = 3600; // an hour?
+		public final static int NOP = 0;
+		public final static int AVOID = 1;
+		public final static int PREFER = 2;
+		public final static String AVDPTTN = "avoid [0-9]+";
+		public final static String PRFPTTN = "prefer [0-9]+";
+		public final static String NUMPTTN = "[0-9]+";
 
 		public void clear() {
 			preferList.clear();
 			avoidList.clear();
 		}
 
-		public void setTTSPlayer(TTSCommandPlayerImpl ttsPlayer) {
-			this.ttsPlayer = ttsPlayer;
-		}
-
-		public void ask(MessageObject message) {
+		public void answer(ArrayList<DataSourceObject> toPlay) {
+			this.toPlay.clear();
+			this.toPlay.addAll(toPlay);
 			ttsPlayer.speak(QUESTION);
-			segment = message.getSegment();
 			handler.post(new Runnable() {
 				@Override
 				public void run() {
 					getAnswer(preferList, avoidList);
 				}
 			});
+		}
+
+		public void setTTSPlayer(TTSCommandPlayerImpl ttsPlayer) {
+			this.ttsPlayer = ttsPlayer;
 		}
 
 		protected void getAnswer(ArrayList<RouteSegment> preferList,
@@ -1498,18 +1513,48 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 				public void onResults(Bundle results) {
 					ArrayList<String> voiceResults = results
 							.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-					boolean found = false;
 					if (voiceResults == null) {
 						log.debug("No voice result");
 					} else {
-						for (String ans : voiceResults) {
-							if (parseAns(ans)) {
-								found = true;
-								break;
-							}
+						StringBuilder s = new StringBuilder();
+						s.append("voice result: ");
+						for(String v : voiceResults){
+							s.append(v + ";");
 						}
-						if (!found) {
-							ignore(segment);
+						
+						log.debug(s.toString());
+						int decision = NOP;
+						Pattern avdpattern = Pattern.compile(Decision.AVDPTTN);
+						Pattern prfpattern = Pattern.compile(Decision.PRFPTTN);
+						Pattern numpattern = Pattern.compile(Decision.NUMPTTN);
+						for (String ans : voiceResults) {
+							Matcher avdMatch = avdpattern.matcher(ans);
+							while(avdMatch.find()){
+								String cmd = avdMatch.group();
+								Matcher numMatch = numpattern.matcher(cmd);
+								if(numMatch.find()){
+									int num = Integer.parseInt(numMatch.group());
+									if(num <= toPlay.size()){
+										avoid(toPlay.get(num - 1).getSegment());
+									}
+								}else{
+									log.error("numMatch should not fail here");
+								}
+							}
+							
+							Matcher prfMatch = prfpattern.matcher(ans);
+							while(prfMatch.find()){
+								String cmd = prfMatch.group();
+								Matcher numMatch = numpattern.matcher(cmd);
+								if(numMatch.find()){
+									int num = Integer.parseInt(numMatch.group());
+									if(num <= toPlay.size()){
+										prefer(toPlay.get(num - 1).getSegment());
+									}
+								}else{
+									log.error("numMatch should not fail here");
+								}
+							}							
 						}
 					}
 					synchronized (decision) {
@@ -1528,40 +1573,32 @@ public class RoadSpeakPlugin extends OsmandPlugin {
 		}
 
 		protected void ignore(RouteSegment segment) {
+			if(segment.getRoad() == null){
+				return;
+			}
 			String roadname = segment.getRoad().getName();
 			Toast.makeText(map, "don't understand your answer",
 					Toast.LENGTH_SHORT).show();
 			log.debug("ignored : " + (roadname == null ? "" : roadname));
 		}
 
-		protected boolean parseAns(String ans) {
-			for (String p : ANS_YES) {
-				if (ans.equalsIgnoreCase(p)) {
-					avoid(segment);
-					return true;
-				}
-			}
-			for (String p : ANS_NO) {
-				if (ans.equalsIgnoreCase(p)) {
-					prefer(segment);
-					return true;
-				}
-			}
-			return false;
-		}
 
 		private void prefer(RouteSegment segment) {
-			preferList.add(segment);
-			String roadname = segment.getRoad().getName();
-			Toast.makeText(map, "don't avoid", Toast.LENGTH_SHORT).show();
-			log.debug("prefered : " + (roadname == null ? "" : roadname));
+			if(!preferList.contains(segment)){
+				preferList.add(segment);
+				String roadname = segment.getRoad().getName();
+				Toast.makeText(map, "don't avoid", Toast.LENGTH_SHORT).show();
+				log.debug("prefered : " + (roadname == null ? "" : roadname));
+			}
 		}
 
 		private void avoid(RouteSegment segment) {
-			avoidList.add(segment);
-			String roadname = segment.getRoad().getName();
-			Toast.makeText(map, "avoid", Toast.LENGTH_SHORT).show();
-			log.debug("avoid : " + (roadname == null ? "" : roadname));
+			if(!avoidList.contains(segment)){
+				avoidList.add(segment);
+				String roadname = segment.getRoad().getName();
+				Toast.makeText(map, "avoid", Toast.LENGTH_SHORT).show();
+				log.debug("avoid : " + (roadname == null ? "" : roadname));
+			}
 		}
 
 		public ArrayList<RouteSegment> getPreferList() {
